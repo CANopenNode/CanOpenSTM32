@@ -4,23 +4,45 @@ CANopenSTM32 is a CANopen stack running in STM32 microcontrollers
 
 ## How to run demos
 
-Examples are prepared for [STM32CubeIDE](https://www.st.com/en/development-tools/stm32cubeide.html) tool,
-official ST developed studio for STM32.
-You can directly open projects there and run example on the board.
+Examples are developed in [STM32CubeIDE](https://www.st.com/en/development-tools/stm32cubeide.html) tool,
+official ST development studio for any STM32 microcontroller.
+You can directly open projects run prepared examples on the board.
 
-Examples are developed for [STM32H735G-DK](https://www.st.com/en/evaluation-tools/stm32h735g-dk.html),
-since it has a full features STM32H7 microcontroller and includes CAN transceiver on board.
+Currently used board is [STM32H735G-DK](https://www.st.com/en/evaluation-tools/stm32h735g-dk.html).
+It has many features of STM32H7xx series and includes 3 CAN transceivers on the board.
+You do not need any additional hardware to connect to existing CAN network.
+It also includes built-in programmer and virtual COM port for communication, hence evaluation is quick and easy.
 
-There is also built-in programmer and virtual COM port for communication, hence no external components are necessary.
+> CanOpen demo works at FDCAN1 port. Use connector CN18.
+
+> FDCAN IP block is same for any STM32H7xx MCU family, hence migration to your custom board should be straight-forward.
 
 ### Features
 
 * Runs out of the box on STM32H735G-DK board
-* Bare metal or FreeRTOS operating system example
+* Bare metal or FreeRTOS operating system examples
 * FDCAN1 (CN18) hardware is used for communication at 125kHz
 * CANopen LED control is well integrated
 * Debug messages are available through VCP COM port at `115200` bauds
 * Can be used as a reference code for end product
+
+### Clone or update
+
+Clone the project from git repository and get submodules:
+
+```
+git clone https://github.com/CANopenNode/CANopenSTM32
+cd CANopenSTM32
+git submodule update --init --recursive
+```
+
+Update an existing project including submodules:
+
+```
+cd CANopenSTM32
+git pull
+git submodule update --init --recursive
+```
 
 ## License
 
