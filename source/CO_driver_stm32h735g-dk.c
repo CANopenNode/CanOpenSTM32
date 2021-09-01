@@ -1,5 +1,5 @@
 /*
- * CAN module object for generic microcontroller.
+ * CAN module object for STM32H7xx FDCAN peripheral IP.
  *
  * This file is a template for other microcontrollers.
  *
