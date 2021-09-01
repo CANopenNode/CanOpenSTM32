@@ -1,0 +1,12 @@
+[submodule "CANopenNode"]
+	path = CANopenNode
+	url = https://github.com/CANopenNode/CANopenNode
+	branch = master
+[submodule "libs/lwrb"]
+	path = libs/lwrb
+	url = https://github.com/MaJerle/lwrb
+	branch = master
+[submodule "libs/lwprintf"]
+	path = libs/lwprintf
+	url = https://github.com/MaJerle/lwprintf
+	branch = master
