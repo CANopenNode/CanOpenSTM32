@@ -1,6 +1,6 @@
 # CANopenNode example for STM32
 
-CANopenSTM32 is a CANopen stack running in STM32 microcontrollers
+CANopenSTM32 is a CANopen stack example running on STM32 microcontroller.
 
 ## How to run demos
 
@@ -13,7 +13,7 @@ It has many features of STM32H7xx series and includes 3 CAN transceivers on the 
 You do not need any additional hardware to connect to existing CAN network.
 It also includes built-in programmer and virtual COM port for communication, hence evaluation is quick and easy.
 
-> CanOpen demo works at FDCAN1 port. Use connector CN18.
+> CanOpen demo works at `FDCAN1` port. Use connector *CN18*.
 
 > FDCAN IP block is same for any STM32H7xx MCU family, hence migration to your custom board should be straight-forward.
 
@@ -21,7 +21,7 @@ It also includes built-in programmer and virtual COM port for communication, hen
 
 * Runs out of the box on STM32H735G-DK board
 * Bare metal or FreeRTOS operating system examples
-* FDCAN1 (CN18) hardware is used for communication at 125kHz
+* `FDCAN1` (*CN18*) hardware is used for communication at 125kHz
 * CANopen LED control is well integrated
 * Debug messages are available through VCP COM port at `115200` bauds
 * Can be used as a reference code for end product
