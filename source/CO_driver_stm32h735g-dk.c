@@ -420,13 +420,6 @@ prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t *buffer) {
             case 6: tx_hdr.DataLength = FDCAN_DLC_BYTES_6; break;
             case 7: tx_hdr.DataLength = FDCAN_DLC_BYTES_7; break;
             case 8: tx_hdr.DataLength = FDCAN_DLC_BYTES_8; break;
-            case 12: tx_hdr.DataLength = FDCAN_DLC_BYTES_12; break;
-            case 16: tx_hdr.DataLength = FDCAN_DLC_BYTES_16; break;
-            case 20: tx_hdr.DataLength = FDCAN_DLC_BYTES_20; break;
-            case 24: tx_hdr.DataLength = FDCAN_DLC_BYTES_24; break;
-            case 32: tx_hdr.DataLength = FDCAN_DLC_BYTES_32; break;
-            case 48: tx_hdr.DataLength = FDCAN_DLC_BYTES_48; break;
-            case 64: tx_hdr.DataLength = FDCAN_DLC_BYTES_64; break;
             default: /* Hard error... */ break;
         }
 
@@ -566,9 +559,10 @@ static void
 prv_read_can_received_msg(FDCAN_HandleTypeDef* hfdcan, uint32_t fifo, uint32_t fifo_isrs) {
     static FDCAN_RxHeaderTypeDef rx_hdr;
     CO_CANrxMsg_t rcvMsg;
+    CO_CANrx_t *buffer = NULL;              /* receive message buffer from CO_CANmodule_t object. */
     uint16_t index;                         /* index of received message */
     uint32_t rcvMsgIdent;                   /* identifier of the received message */
-    CO_CANrx_t *buffer = NULL;              /* receive message buffer from CO_CANmodule_t object. */
+    uint8_t messageFound = 0;
 
     /* Read received message from FIFO */
     if (HAL_FDCAN_GetRxMessage(hfdcan, fifo, &rx_hdr, rcvMsg.data) != HAL_OK) {
@@ -587,14 +581,7 @@ prv_read_can_received_msg(FDCAN_HandleTypeDef* hfdcan, uint32_t fifo, uint32_t f
         case FDCAN_DLC_BYTES_6: rcvMsg.dlc = 6; break;
         case FDCAN_DLC_BYTES_7: rcvMsg.dlc = 7; break;
         case FDCAN_DLC_BYTES_8: rcvMsg.dlc = 8; break;
-        case FDCAN_DLC_BYTES_12: rcvMsg.dlc = 12; break;
-        case FDCAN_DLC_BYTES_16: rcvMsg.dlc = 16; break;
-        case FDCAN_DLC_BYTES_20: rcvMsg.dlc = 20; break;
-        case FDCAN_DLC_BYTES_24: rcvMsg.dlc = 24; break;
-        case FDCAN_DLC_BYTES_32: rcvMsg.dlc = 32; break;
-        case FDCAN_DLC_BYTES_48: rcvMsg.dlc = 48; break;
-        case FDCAN_DLC_BYTES_64: rcvMsg.dlc = 64; break;
-        default: rcvMsg.dlc = 0; break;
+        default: rcvMsg.dlc = 0; break;     /* Invalid length when more than 8 */
     }
     rcvMsgIdent = rcvMsg.ident;
 
@@ -609,16 +596,17 @@ prv_read_can_received_msg(FDCAN_HandleTypeDef* hfdcan, uint32_t fifo, uint32_t f
          * We are not using hardware filters, hence it is necessary
          * to manually match received message ID with all buffers
          */
-        for (index = CANModule_local->rxSize; index > 0U; --index, ++buffer){
+        buffer = CANModule_local->rxArray;
+        for (index = CANModule_local->rxSize; index > 0U; --index, ++buffer) {
             if (((rcvMsgIdent ^ buffer->ident) & buffer->mask) == 0U) {
-                buffer = &CANModule_local->rxArray[index];
+                messageFound = 1;
                 break;
             }
         }
     }
 
     /* Call specific function, which will process the message */
-    if (buffer != NULL && buffer->CANrx_callback != NULL) {
+    if (messageFound && buffer != NULL && buffer->CANrx_callback != NULL) {
         buffer->CANrx_callback(buffer->object, (void*) &rcvMsg);
     }
 }

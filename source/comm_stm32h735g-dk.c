@@ -47,7 +47,7 @@
 #define DEBUG_BAUDRATE                              115200
 
 /* Maximum number of bytes to be transmitted in one DMA shot */
-#define TX_MAX_LEN                                  128
+#define TX_MAX_LEN                                  512
 
 /* Priority for DMA and UART peripheral */
 #define UART_DMA_IRQ_PRIO                           6
@@ -134,7 +134,7 @@ comm_start_transfer(void) {
          * Cleanup cache to ensure latest data are in target memory
          * Address and length have be 32-bytes aligned
          */
-        SCB_CleanDCache_by_Addr((uint32_t *)(((uint32_t)d) & ~(uint32_t)0x1F), (tx_len + 32) & 0x1F);
+        //SCB_CleanDCache_by_Addr((uint32_t *)(((uint32_t)d) & ~(uint32_t)0x1F), (tx_len + 32) & 0x1F);
 
         /* Disable channel if enabled */
         LL_DMA_DisableStream(DMA1, LL_DMA_STREAM_7);

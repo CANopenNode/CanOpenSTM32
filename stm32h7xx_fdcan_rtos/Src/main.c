@@ -65,6 +65,7 @@ main(void) {
     mpu_config();
     //SCB_EnableDCache();
     //SCB_EnableICache();
+
     __HAL_RCC_SYSCFG_CLK_ENABLE();
 
     /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -114,7 +115,9 @@ thread_init_entry(void* arg) {
 }
 
 /**
- * \brief           Main CANopen thread
+ * \brief           Main CANopen application thread
+ * It creates new CANopen instance and sets up CAN peripheral
+ *
  * \param[in]       arg: User argument
  */
 static void
@@ -128,7 +131,9 @@ thread_canopen_entry(void* arg) {
         comm_printf("Error: Could not allocate CO instance\r\n");
         Error_Handler();
     }
-    comm_printf("CO allocated and ready to used with %u bytes of heap\r\n", (unsigned)co_heap_used);
+    comm_printf("CO allocated and ready to use with %u bytes of heap\r\n", (unsigned)co_heap_used);
+
+
 
     /* Start application */
     do {
@@ -246,6 +251,9 @@ thread_canopen_entry(void* arg) {
             time_current = osKernelGetTickCount();
             timeDifference_us = (time_current - time_old) * (1000000 / configTICK_RATE_HZ);
             time_old = time_current;
+
+            /* That's a debug message to see diff between 2 function calls */
+            comm_printf("Process thread is running...timeDiff: %u ms\r\n", (unsigned)(timeDifference_us / 1000));
 
             /* Reset max sleep time to maximum */
             max_sleep_time_us = (uint32_t)-1;
