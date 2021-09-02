@@ -59,14 +59,20 @@ typedef struct {
 FDCAN_HandleTypeDef hfdcan1;                    /* Global FDCAN instance for HAL */
 static CO_CANmodule_t* CANModule_local = NULL;  /* Local instance of global CAN module */
 
+/* CAN masks for identifiers */
+#define CANID_MASK                              0x07FF  /*!< CAN standard ID mask */
+#define FLAG_RTR                                0x8000  /*!< RTR flag, part of identifier */
+
 #if defined(USE_OS)
 /* Mutex for atomic access */
 static osMutexId_t co_mutex;
-#endif /* defined(USE_OS) */
 
-/* Driver specific masks */
-#define CANID_MASK                              0x07FF  /*!< CAN standard ID mask */
-#define FLAG_RTR                                0x8000  /*!< RTR flag, part of identifier */
+/* Semaphore for main app thread synchronization */
+osSemaphoreId_t co_drv_app_thread_sync_semaphore;
+
+/* Semaphore for periodic thread synchronization */
+osSemaphoreId_t co_drv_periodic_thread_sync_semaphore;
+#endif /* defined(USE_OS) */
 
 /*
  * Setup default config for 125kHz
@@ -112,7 +118,6 @@ CO_CANmodule_init(
         uint16_t                txSize,
         uint16_t                CANbitRate)
 {
-    FDCAN_FilterTypeDef flt = {0};
     FDCAN_ClkCalUnitTypeDef fdcan_clk = {0};
 
     /* verify arguments */
@@ -125,9 +130,24 @@ CO_CANmodule_init(
     if (co_mutex == NULL) {
         const osMutexAttr_t attr = {
             .attr_bits = osMutexRecursive,
-            .name = "co_mutex"
+            .name = "co"
         };
         co_mutex = osMutexNew(&attr);
+    }
+    /* Semaphore for main app thread synchronization */
+    if (co_drv_app_thread_sync_semaphore == NULL) {
+        const osSemaphoreAttr_t attr = {
+                .name = "co_app_thread_sync"
+        };
+        co_drv_app_thread_sync_semaphore = osSemaphoreNew(1, 1, &attr);
+    }
+
+    /* Semaphore for periodic thread synchronization */
+    if (co_drv_periodic_thread_sync_semaphore == NULL) {
+        const osSemaphoreAttr_t attr = {
+                .name = "co_app_thread_sync"
+        };
+        co_drv_periodic_thread_sync_semaphore = osSemaphoreNew(1, 1, &attr);
     }
 #endif /* defined(USE_OS) */
 
@@ -168,7 +188,7 @@ CO_CANmodule_init(
     HAL_FDCAN_Stop(&hfdcan1);
     HAL_FDCAN_DeInit(&hfdcan1);
 
-    /* Setup prescaler block config */
+    /* Setup prescaler block config for FDCAN input module */
     switch (fdcan_br_cfg.clk_presc) {
         case 0:
         case 1: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV1; break;
@@ -189,6 +209,10 @@ CO_CANmodule_init(
         case 30: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV30; break;
         default: return CO_ERROR_ILLEGAL_ARGUMENT;
     }
+    fdcan_clk.ClockCalibration = FDCAN_CLOCK_CALIBRATION_DISABLE;
+    if (HAL_FDCAN_ConfigClockCalibration(&hfdcan1, &fdcan_clk) != HAL_OK) {
+        return CO_ERROR_ILLEGAL_ARGUMENT;
+    }
 
     /* Set FDCAN parameters */
     hfdcan1.Init.FrameFormat = FDCAN_FRAME_CLASSIC;
@@ -205,7 +229,9 @@ CO_CANmodule_init(
 
     /*
      * Setup data bit timing.
-     * Used only if FD and BRS modes are globally enabled
+     *
+     * Used only if FD and BRS modes are globally enabled,
+     * which is not the case for CANopen
      */
     hfdcan1.Init.DataPrescaler = hfdcan1.Init.NominalPrescaler;
     hfdcan1.Init.DataSyncJumpWidth = hfdcan1.Init.NominalSyncJumpWidth;
@@ -232,27 +258,14 @@ CO_CANmodule_init(
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
 
-    /* Setup clock config option, prescaler has been set already */
-    fdcan_clk.ClockCalibration = FDCAN_CLOCK_CALIBRATION_DISABLE;
-    if (HAL_FDCAN_ConfigClockCalibration(&hfdcan1, &fdcan_clk) != HAL_OK) {
-        return CO_ERROR_ILLEGAL_ARGUMENT;
-    }
-
-    /* Set filters to allow all frames to be received for standard ID */
-    flt.IdType = FDCAN_STANDARD_ID;
-    flt.FilterConfig = FDCAN_FILTER_TO_RXFIFO0; /* Move to FIFO 0 */
-    flt.FilterIndex = 0;
-    flt.FilterType = FDCAN_FILTER_MASK;         /* Use mask filtering */
-    flt.FilterID1 = 0x00;                       /* Bits to match */
-    flt.FilterID2 = 0x00;                       /* Mask to use for match */
-    if (HAL_FDCAN_ConfigFilter(&hfdcan1, &flt) != HAL_OK) {
-        return CO_ERROR_ILLEGAL_ARGUMENT;
-    }
-
     /*
-     * Configure global filter:
+     * Configure global filter that is used as last check if message did not pass any of other filters:
+     *
+     * We do not rely on hardware filters in this example
+     * and are performing software filters instead
+     *
      * Accept non-matching standard ID messages
-     * Reject non matching extended ID messages
+     * Reject non-matching extended ID messages
      */
     if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan1,
             FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_REJECT,
@@ -359,11 +372,7 @@ CO_CANtxBufferInit(
     if (CANmodule != NULL && index < CANmodule->txSize) {
         buffer = &CANmodule->txArray[index];
 
-        /*
-         * CAN identifier, DLC and rtr, bit aligned with CAN module transmit buffer
-         *
-         * Use single variable for all values
-         */
+        /* CAN identifier, DLC and rtr, bit aligned with CAN module transmit buffer */
         buffer->ident = ((uint32_t)ident & CANID_MASK)
                         | ((uint32_t)(rtr ? FLAG_RTR : 0x00));
         buffer->DLC = noOfBytes;
@@ -375,7 +384,7 @@ CO_CANtxBufferInit(
 
 /**
  * \brief           Send CAN message to network
- * This function must be called from interrupt-disabled context
+ * This function must be called with atomic access.
  *
  * \param[in]       CANmodule: CAN module instance
  * \param[in]       buffer: Pointer to buffer to transmit
@@ -441,9 +450,9 @@ CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer) {
     }
 
     /*
-     * Send message over CAN network
+     * Send message to CAN network
      *
-     * Lock interrupts to make sure we have atomic operation
+     * Lock interrupts for atomic operation
      */
     CO_LOCK_CAN_SEND(CANmodule);
     if (prv_send_can_message(CANmodule, buffer)) {
@@ -596,8 +605,8 @@ prv_read_can_received_msg(FDCAN_HandleTypeDef* hfdcan, uint32_t fifo, uint32_t f
         __NOP();
     } else {
         /*
-         * CAN module filters are not used, message with any standard 11-bit identifier
-         * has been received. Search rxArray form CANmodule for the same CAN-ID.
+         * We are not using hardware filters, hence it is necessary
+         * to manually match received message ID with all buffers
          */
         for (index = CANModule_local->rxSize; index > 0U; --index, ++buffer){
             if (((rcvMsgIdent ^ buffer->ident) & buffer->mask) == 0U) {
@@ -751,6 +760,9 @@ HAL_FDCAN_MspDeInit(FDCAN_HandleTypeDef* fdcanHandle) {
 void
 FDCAN1_IT0_IRQHandler(void) {
     HAL_FDCAN_IRQHandler(&hfdcan1);
+
+    /* Wake-up application thread */
+    CO_WAKEUP_APP_THREAD();
 }
 
 /**
@@ -759,4 +771,7 @@ FDCAN1_IT0_IRQHandler(void) {
 void
 FDCAN1_IT1_IRQHandler(void) {
     HAL_FDCAN_IRQHandler(&hfdcan1);
+
+    /* Wake-up application thread */
+    CO_WAKEUP_APP_THREAD();
 }

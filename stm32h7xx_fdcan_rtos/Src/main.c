@@ -121,6 +121,8 @@ thread_init_entry(void* arg) {
  */
 static void
 thread_canopen_entry(void* arg) {
+    uint32_t max_sleep_time_us;
+
     comm_printf("CANopen main thread is running\r\n", (unsigned)co_heap_used);
 
     /* Initialize new instance of CANopen */
@@ -217,35 +219,41 @@ thread_canopen_entry(void* arg) {
         /* Start CAN to receive messages */
         CO_CANsetNormalMode(CO->CANmodule);
 
-        reset = CO_RESET_NOT;
-        comm_printf("CANopenNode - Running and ready to communicate...\n");
-
         /* Create thread for very periodic tasks */
         if (thread_canopen_periodic_handle == NULL) {
             thread_canopen_periodic_handle = osThreadNew(thread_canopen_periodic_entry, NULL, &thread_canopen_periodic_attr);
         }
 
+        reset = CO_RESET_NOT;
+        comm_printf("CANopenNode - Running and ready to communicate...\n");
+
         /* Get current tick time */
         time_old = time_current = osKernelGetTickCount();
+        max_sleep_time_us = 0;              /* Get first sleep time */
         while (reset == CO_RESET_NOT) {
             uint32_t timeDifference_us;
 
             /*
-             * Add delay to put task to blocked state
-             * and allow other tasks to process
+             * This will block this thread for up to maximal time.
+             *
+             * If in-between new CAN message arrives,
+             * thread will be woken-up from CAN RX interrupt
              */
-            osDelay(1);
+            CO_WAIT_SYNC_APP_THREAD(max_sleep_time_us / 1000);
+
+            /* Get exclusive access to CANopen core stack. */
+            co_drv_mutex_lock();
 
             /* Get current kernel tick time */
             time_current = osKernelGetTickCount();
             timeDifference_us = (time_current - time_old) * (1000000 / configTICK_RATE_HZ);
             time_old = time_current;
 
-            /* Get access mutex */
-            co_drv_mutex_lock();
+            /* Reset max sleep time to maximum */
+            max_sleep_time_us = (uint32_t)-1;
 
             /* CANopen process */
-            reset = CO_process(CO, false, timeDifference_us, NULL);
+            reset = CO_process(CO, false, timeDifference_us, &max_sleep_time_us);
 
             /* Process LEDs and react only on change */
             LED_red_status = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
@@ -263,7 +271,13 @@ thread_canopen_entry(void* arg) {
                 LL_GPIO_SetOutputPin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
             }
 
-            /* Release mutex and allow other tasks to process */
+            /*
+             * We want to wakeup periodic thread,
+             * in-charge of other important CANopen tasks
+             */
+            CO_WAKEUP_PERIODIC_THREAD();
+
+            /* Only now release mutex to allow other tasks accessing CANopen core */
             co_drv_mutex_unlock();
         }
     } while (reset == CO_RESET_NOT);
@@ -282,17 +296,28 @@ thread_canopen_entry(void* arg) {
  */
 static void
 thread_canopen_periodic_entry(void* arg) {
-    uint32_t time_old, time_current, timeDifference_us;
+    uint32_t time_old, time_current, timeDifference_us, max_sleep_time_us;
 
     comm_printf("CANopen periodic thread is running\r\n", (unsigned)co_heap_used);
 
+    co_drv_mutex_lock();                        /* Get access mutex */
     time_old = time_current = osKernelGetTickCount();
+    max_sleep_time_us = 0;                      /* No sleep for very first time */
     while (1) {
+        co_drv_mutex_unlock();                  /* Release mutex to allow other tasks to process */
+
         /*
-         * Add delay to put task to blocked state
-         * and allow other tasks to process
+         * This will block this thread for up to maximal time.
+         *
+         * If in-between new CAN message arrives,
+         * thread will be woken-up from CAN RX interrupt
          */
-        osDelay(1);
+        CO_WAIT_SYNC_PERIODIC_THREAD(max_sleep_time_us / 1000);
+
+        /* Get access mutex */
+        co_drv_mutex_lock();
+
+        /* Verify that everything is set */
         if (CO == NULL || !CO->CANmodule->CANnormal) {
             continue;
         }
@@ -302,26 +327,23 @@ thread_canopen_periodic_entry(void* arg) {
         timeDifference_us = (time_current - time_old) * (1000000 / configTICK_RATE_HZ);
         time_old = time_current;
 
-        /* Get access mutex */
-        co_drv_mutex_lock();
+        /* Set time to maximum */
+        max_sleep_time_us = (uint32_t)-1;
 
         /* For the moment lock interrupts for further processing */
         if (!CO->nodeIdUnconfigured && CO->CANmodule->CANnormal) {
             bool_t syncWas = false;
 
 #if (CO_CONFIG_SYNC) & CO_CONFIG_SYNC_ENABLE
-            syncWas = CO_process_SYNC(CO, timeDifference_us, NULL);
+            syncWas = CO_process_SYNC(CO, timeDifference_us, &max_sleep_time_us);
 #endif
 #if (CO_CONFIG_PDO) & CO_CONFIG_RPDO_ENABLE
-            CO_process_RPDO(CO, syncWas, timeDifference_us, NULL);
+            CO_process_RPDO(CO, syncWas, timeDifference_us, &max_sleep_time_us);
 #endif
 #if (CO_CONFIG_PDO) & CO_CONFIG_TPDO_ENABLE
-            CO_process_TPDO(CO, syncWas, timeDifference_us, NULL);
+            CO_process_TPDO(CO, syncWas, timeDifference_us, &max_sleep_time_us);
 #endif
         }
-
-        /* Release mutex and allow other tasks to process */
-        co_drv_mutex_unlock();
     }
 }
 
