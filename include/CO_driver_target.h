@@ -169,7 +169,7 @@ extern osSemaphoreId_t co_drv_periodic_thread_sync_semaphore;
 
 /* Empty definitions for non-OS implementation */
 #define CO_WAKEUP_APP_THREAD()
-#define CO_WAKEUP_PERIODIC_THREAD();
+#define CO_WAKEUP_PERIODIC_THREAD()
 
 #endif /* !defined(USE_OS) */
 
