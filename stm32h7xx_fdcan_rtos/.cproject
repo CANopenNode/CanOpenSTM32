@@ -40,8 +40,10 @@
 									<listOptionValue builtIn="false" value="DEBUG"/>
 									<listOptionValue builtIn="false" value="STM32H7xx"/>
 									<listOptionValue builtIn="false" value="LWPRINTF_CFG_OS=1"/>
+									<listOptionValue builtIn="false" value="LWMEM_CFG_OS=1"/>
 									<listOptionValue builtIn="false" value="USE_OS"/>
 									<listOptionValue builtIn="false" value="LWPRINTF_IGNORE_USER_OPTS"/>
+									<listOptionValue builtIn="false" value="LWMEM_IGNORE_USER_OPTS"/>
 									<listOptionValue builtIn="false" value="HSE_VALUE=25000000"/>
 									<listOptionValue builtIn="false" value="USE_HAL_DRIVER"/>
 									<listOptionValue builtIn="false" value="USE_FULL_LL_DRIVER"/>
@@ -55,6 +57,7 @@
 									<listOptionValue builtIn="false" value="../../include"/>
 									<listOptionValue builtIn="false" value="../../libs/lwrb/lwrb/src/include"/>
 									<listOptionValue builtIn="false" value="../../libs/lwprintf/lwprintf/src/include"/>
+									<listOptionValue builtIn="false" value="../../libs/lwmem/lwmem/src/include"/>
 									<listOptionValue builtIn="false" value="../../CANopenNode"/>
 									<listOptionValue builtIn="false" value="../../drivers/STM32H7xx_HAL_Driver/Inc"/>
 									<listOptionValue builtIn="false" value="../../drivers/STM32H7xx_HAL_Driver/Inc/Legacy"/>
@@ -90,6 +93,7 @@
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="FreeRTOS"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Src"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Startup"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="lwmem"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="lwprintf"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="lwrb"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="stm32_hal_driver"/>
@@ -171,6 +175,7 @@
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="FreeRTOS"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Src"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Startup"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="lwmem"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="lwprintf"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="lwrb"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="stm32_hal_driver"/>
@@ -195,5 +200,12 @@
 			<autodiscovery enabled="false" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
 	</storageModule>
-	<storageModule moduleId="refreshScope"/>
+	<storageModule moduleId="refreshScope" versionNumber="2">
+		<configuration configurationName="Debug">
+			<resource resourceType="PROJECT" workspacePath="/CANOpenNode-STM32H735G-DK-FreeRTOS"/>
+		</configuration>
+		<configuration configurationName="Release">
+			<resource resourceType="PROJECT" workspacePath="/CANOpenNode-STM32H735G-DK-FreeRTOS"/>
+		</configuration>
+	</storageModule>
 </cproject>

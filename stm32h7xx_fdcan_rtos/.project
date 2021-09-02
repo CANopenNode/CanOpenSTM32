@@ -196,6 +196,16 @@
 			<locationURI>PARENT-1-PROJECT_LOC/source/comm_stm32h735g-dk.c</locationURI>
 		</link>
 		<link>
+			<name>lwmem/lwmem.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/libs/lwmem/lwmem/src/lwmem/lwmem.c</locationURI>
+		</link>
+		<link>
+			<name>lwmem/lwmem_sys_cmsis_os.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/libs/lwmem/lwmem/src/system/lwmem_sys_cmsis_os.c</locationURI>
+		</link>
+		<link>
 			<name>lwprintf/lwprintf.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/libs/lwprintf/lwprintf/src/lwprintf/lwprintf.c</locationURI>

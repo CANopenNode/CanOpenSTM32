@@ -43,8 +43,11 @@ thread_canopen_periodic_attr = {
 static osThreadId_t thread_canopen_handle;
 static osThreadId_t thread_canopen_periodic_handle;
 
-/* Very global variable, used for interrupt processing too */
-extern FDCAN_HandleTypeDef hfdcan1;         /* Global FDCAN instance for HAL */
+/* Lwmem buffer for allocation */
+static uint8_t lwmem_buffer[0x4000];
+const static lwmem_region_t lwmem_default_regions[] = {
+        {lwmem_buffer, sizeof(lwmem_buffer)}
+};
 
 /* Local variables */
 static CO_t* CO;
@@ -92,6 +95,7 @@ main(void) {
 static void
 thread_init_entry(void* arg) {
     /* Initialize all configured peripherals */
+    lwmem_assignmem(lwmem_default_regions, sizeof(lwmem_default_regions) / sizeof(lwmem_default_regions[0]));
     led_btn_init();
     comm_init();
     comm_printf("CANopenNode application running on STM32H735G-DK\r\n");

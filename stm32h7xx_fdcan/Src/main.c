@@ -16,6 +16,12 @@ void SystemClock_Config(void);
 static void led_btn_init(void);
 static void mpu_config(void);
 
+/* Lwmem buffer for allocation */
+static uint8_t lwmem_buffer[0x4000];
+const static lwmem_region_t lwmem_default_regions[] = {
+        {lwmem_buffer, sizeof(lwmem_buffer)}
+};
+
 /* Local variables */
 static CO_t* CO;
 static uint32_t co_heap_used;
@@ -36,8 +42,6 @@ static uint8_t LED_red_status, LED_green_status;
 int
 main(void) {
     mpu_config();
-    //SCB_EnableDCache();
-    //SCB_EnableICache();
     __HAL_RCC_SYSCFG_CLK_ENABLE();
 
     /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -47,6 +51,7 @@ main(void) {
     SystemClock_Config();
 
     /* Initialize all configured peripherals */
+    lwmem_assignmem(lwmem_default_regions, sizeof(lwmem_default_regions) / sizeof(lwmem_default_regions[0]));
     led_btn_init();
     comm_init();
     comm_printf("CANopenNode application running on STM32H735G-DK\r\n");
@@ -56,7 +61,8 @@ main(void) {
         comm_printf("Error: Could not allocate CO instance\r\n");
         Error_Handler();
     }
-    comm_printf("CO allocated and ready to used with %u bytes of heap\r\n", (unsigned)co_heap_used);
+    comm_printf("CO allocated, uses %u bytes of heap memory\r\n", (unsigned)co_heap_used);
+    CO->CANmodule->CANptr = &hfdcan1;
 
     /* Start application */
     do {
@@ -69,11 +75,11 @@ main(void) {
         CO->CANmodule->CANnormal = false;
 
         /* Enter CAN configuration. */
-        CO_CANsetConfigurationMode(NULL);
+        CO_CANsetConfigurationMode(CO->CANmodule->CANptr);
         CO_CANmodule_disable(CO->CANmodule);
 
         /* Initialize CANopen */
-        if ((err = CO_CANinit(CO, NULL, pendingBitRate)) != CO_ERROR_NO) {
+        if ((err = CO_CANinit(CO, CO->CANmodule->CANptr, pendingBitRate)) != CO_ERROR_NO) {
             comm_printf("Error: CAN initialization failed: %d\n", err);
             Error_Handler();
         }
@@ -112,8 +118,8 @@ main(void) {
                 comm_printf("Error: Object Dictionary entry 0x%X\n", (unsigned)errInfo);
             } else {
                 comm_printf("Error: CANopen initialization failed: %d\n", (int)err);
-                Error_Handler();
             }
+            Error_Handler();
         }
         comm_printf("CANOpen initialized\r\n");
 

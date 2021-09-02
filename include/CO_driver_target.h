@@ -141,6 +141,11 @@ typedef struct {
 #define CO_FLAG_SET(rxNew)                      do { CO_MemoryBarrier(); rxNew = (void*)1L; } while (0)
 #define CO_FLAG_CLEAR(rxNew)                    do { CO_MemoryBarrier(); rxNew = NULL; } while (0)
 
+/* External FDCAN handle object */
+#if defined(STM32H7xx)
+extern FDCAN_HandleTypeDef hfdcan1;         /* Global FDCAN instance for HAL */
+#endif /* defined(STM32H7xx) */
+
 /*
  * Operating system use case.
  *
@@ -173,6 +178,14 @@ extern osSemaphoreId_t co_drv_periodic_thread_sync_semaphore;
 #define CO_WAKEUP_PERIODIC_THREAD()
 
 #endif /* !defined(USE_OS) */
+
+/* Allocation management */
+#include "lwmem/lwmem.h"
+#if defined(CO_USE_GLOBALS)
+#undef CO_USE_GLOBALS
+#endif
+#define CO_alloc(num, size)             lwmem_calloc((num), (size))
+#define CO_free(ptr)                    lwmem_free((ptr))
 
 #ifdef __cplusplus
 }
