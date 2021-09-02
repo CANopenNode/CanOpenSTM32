@@ -42,7 +42,6 @@ thread_canopen_periodic_attr = {
 };
 static osThreadId_t thread_canopen_handle;
 static osThreadId_t thread_canopen_periodic_handle;
-static osMutexId_t mutex_canopen_handle;
 
 /* Local variables */
 static CO_t* CO;
@@ -97,7 +96,6 @@ thread_init_entry(void* arg) {
     comm_printf("CANopenNode application running on STM32H735G-DK\r\n");
 
     /* Start CANopen main task */
-    mutex_canopen_handle = osMutexNew(NULL);
     thread_canopen_handle = osThreadNew(thread_canopen_entry, NULL, &thread_canopen_attr);
 
     /* Add other application tasks... */
@@ -186,8 +184,8 @@ thread_canopen_entry(void* arg) {
                 comm_printf("Error: Object Dictionary entry 0x%X\n", (unsigned)errInfo);
             } else {
                 comm_printf("Error: CANopen initialization failed: %d\n", (int)err);
-                Error_Handler();
             }
+            Error_Handler();
         }
         comm_printf("CANOpen initialized\r\n");
 
