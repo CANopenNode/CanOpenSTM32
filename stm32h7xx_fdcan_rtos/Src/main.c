@@ -123,7 +123,7 @@ static void
 thread_canopen_entry(void* arg) {
     uint32_t max_sleep_time_us;
 
-    comm_printf("CANopen main thread is running\r\n", (unsigned)co_heap_used);
+    comm_printf("CANopen main thread is running\r\n");
 
     /* Initialize new instance of CANopen */
     if ((CO = CO_new(NULL, &co_heap_used)) == NULL) {
@@ -298,7 +298,7 @@ static void
 thread_canopen_periodic_entry(void* arg) {
     uint32_t time_old, time_current, timeDifference_us, max_sleep_time_us;
 
-    comm_printf("CANopen periodic thread is running\r\n", (unsigned)co_heap_used);
+    comm_printf("CANopen periodic thread is running\r\n");
 
     co_drv_mutex_lock();                        /* Get access mutex */
     time_old = time_current = osKernelGetTickCount();

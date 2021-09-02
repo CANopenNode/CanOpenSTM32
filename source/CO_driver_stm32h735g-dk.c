@@ -145,7 +145,7 @@ CO_CANmodule_init(
     /* Semaphore for periodic thread synchronization */
     if (co_drv_periodic_thread_sync_semaphore == NULL) {
         const osSemaphoreAttr_t attr = {
-                .name = "co_app_thread_sync"
+                .name = "co_periodic_thread_sync"
         };
         co_drv_periodic_thread_sync_semaphore = osSemaphoreNew(1, 1, &attr);
     }
