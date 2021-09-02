@@ -52,21 +52,26 @@ typedef struct {
     } br_nominal;
 } fdcan_br_cfg_t;
 
-/* Get FDCAN handle from CANptr variable */
-#define GET_FDCAN_HANDLE(CANptr)        ((CANptr) != NULL ? (CANptr) : &hfdcan1)
-
-/* FDCAN1 handle */
-FDCAN_HandleTypeDef hfdcan1;                    /* Global FDCAN instance for HAL */
+/* Local CAN module object */
 static CO_CANmodule_t* CANModule_local = NULL;  /* Local instance of global CAN module */
+
+/* CAN masks for identifiers */
+#define CANID_MASK                              0x07FF  /*!< CAN standard ID mask */
+#define FLAG_RTR                                0x8000  /*!< RTR flag, part of identifier */
 
 #if defined(USE_OS)
 /* Mutex for atomic access */
 static osMutexId_t co_mutex;
+
+/* Semaphore for main app thread synchronization */
+osSemaphoreId_t co_drv_app_thread_sync_semaphore;
+
+/* Semaphore for periodic thread synchronization */
+osSemaphoreId_t co_drv_periodic_thread_sync_semaphore;
 #endif /* defined(USE_OS) */
 
-/* Driver specific masks */
-#define CANID_MASK                              0x07FF  /*!< CAN standard ID mask */
-#define FLAG_RTR                                0x8000  /*!< RTR flag, part of identifier */
+/* FDCAN handle object */
+FDCAN_HandleTypeDef hfdcan1;
 
 /*
  * Setup default config for 125kHz
@@ -89,14 +94,16 @@ fdcan_br_cfg = {
 void
 CO_CANsetConfigurationMode(void *CANptr) {
     /* Put CAN module in configuration mode */
-    HAL_FDCAN_Stop(GET_FDCAN_HANDLE(CANptr));
+    if (CANptr != NULL) {
+        HAL_FDCAN_Stop(CANptr);
+    }
 }
 
 /******************************************************************************/
 void
 CO_CANsetNormalMode(CO_CANmodule_t *CANmodule) {
     /* Put CAN module in normal mode */
-    if (HAL_FDCAN_Start(GET_FDCAN_HANDLE(CANmodule->CANptr)) == HAL_OK) {
+    if (CANmodule->CANptr != NULL && HAL_FDCAN_Start(CANmodule->CANptr) == HAL_OK) {
         CANmodule->CANnormal = true;
     }
 }
@@ -112,30 +119,26 @@ CO_CANmodule_init(
         uint16_t                txSize,
         uint16_t                CANbitRate)
 {
-    FDCAN_FilterTypeDef flt = {0};
     FDCAN_ClkCalUnitTypeDef fdcan_clk = {0};
 
     /* verify arguments */
-    if (CANmodule == NULL || rxArray == NULL || txArray == NULL){
+    if (CANmodule == NULL || rxArray == NULL || txArray == NULL) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
 
-#if defined(USE_OS)
-    /* Create new mutex for OS context */
-    if (co_mutex == NULL) {
-        const osMutexAttr_t attr = {
-            .attr_bits = osMutexRecursive,
-            .name = "co_mutex"
-        };
-        co_mutex = osMutexNew(&attr);
+    /*
+     * Application must set CAN pointer to FDCAN handle.
+     *
+     * Only FDCAN1 is supported in current revision.
+     */
+    if (CANptr != &hfdcan1) {
+        return CO_ERROR_ILLEGAL_ARGUMENT;
     }
-#endif /* defined(USE_OS) */
 
     /* Hold CANModule variable */
     CANModule_local = CANmodule;
 
     /* Configure object variables */
-    CANmodule->CANptr = &hfdcan1;
     CANmodule->rxArray = rxArray;
     CANmodule->rxSize = rxSize;
     CANmodule->txArray = txArray;
@@ -168,28 +171,6 @@ CO_CANmodule_init(
     HAL_FDCAN_Stop(&hfdcan1);
     HAL_FDCAN_DeInit(&hfdcan1);
 
-    /* Setup prescaler block config */
-    switch (fdcan_br_cfg.clk_presc) {
-        case 0:
-        case 1: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV1; break;
-        case 2: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV2; break;
-        case 4: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV4; break;
-        case 6: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV6; break;
-        case 8: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV8; break;
-        case 10: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV10; break;
-        case 12: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV12; break;
-        case 14: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV14; break;
-        case 16: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV16; break;
-        case 18: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV18; break;
-        case 20: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV20; break;
-        case 22: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV22; break;
-        case 24: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV24; break;
-        case 26: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV26; break;
-        case 28: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV28; break;
-        case 30: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV30; break;
-        default: return CO_ERROR_ILLEGAL_ARGUMENT;
-    }
-
     /* Set FDCAN parameters */
     hfdcan1.Init.FrameFormat = FDCAN_FRAME_CLASSIC;
     hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
@@ -205,7 +186,9 @@ CO_CANmodule_init(
 
     /*
      * Setup data bit timing.
-     * Used only if FD and BRS modes are globally enabled
+     *
+     * Used only if FD and BRS modes are globally enabled,
+     * which is not the case for CANopen
      */
     hfdcan1.Init.DataPrescaler = hfdcan1.Init.NominalPrescaler;
     hfdcan1.Init.DataSyncJumpWidth = hfdcan1.Init.NominalSyncJumpWidth;
@@ -232,27 +215,41 @@ CO_CANmodule_init(
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
 
-    /* Setup clock config option, prescaler has been set already */
+    /* Setup prescaler block config for FDCAN input module */
+    switch (fdcan_br_cfg.clk_presc) {
+        case 0:
+        case 1: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV1; break;
+        case 2: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV2; break;
+        case 4: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV4; break;
+        case 6: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV6; break;
+        case 8: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV8; break;
+        case 10: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV10; break;
+        case 12: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV12; break;
+        case 14: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV14; break;
+        case 16: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV16; break;
+        case 18: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV18; break;
+        case 20: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV20; break;
+        case 22: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV22; break;
+        case 24: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV24; break;
+        case 26: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV26; break;
+        case 28: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV28; break;
+        case 30: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV30; break;
+        default: return CO_ERROR_ILLEGAL_ARGUMENT;
+    }
     fdcan_clk.ClockCalibration = FDCAN_CLOCK_CALIBRATION_DISABLE;
     if (HAL_FDCAN_ConfigClockCalibration(&hfdcan1, &fdcan_clk) != HAL_OK) {
-        return CO_ERROR_ILLEGAL_ARGUMENT;
-    }
-
-    /* Set filters to allow all frames to be received for standard ID */
-    flt.IdType = FDCAN_STANDARD_ID;
-    flt.FilterConfig = FDCAN_FILTER_TO_RXFIFO0; /* Move to FIFO 0 */
-    flt.FilterIndex = 0;
-    flt.FilterType = FDCAN_FILTER_MASK;         /* Use mask filtering */
-    flt.FilterID1 = 0x00;                       /* Bits to match */
-    flt.FilterID2 = 0x00;                       /* Mask to use for match */
-    if (HAL_FDCAN_ConfigFilter(&hfdcan1, &flt) != HAL_OK) {
+        HAL_FDCAN_DeInit(&hfdcan1);
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
 
     /*
-     * Configure global filter:
+     * Configure global filter that is used as last check if message did not pass any of other filters:
+     *
+     * We do not rely on hardware filters in this example
+     * and are performing software filters instead
+     *
      * Accept non-matching standard ID messages
-     * Reject non matching extended ID messages
+     * Reject non-matching extended ID messages
      */
     if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan1,
             FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_REJECT,
@@ -270,11 +267,44 @@ CO_CANmodule_init(
             | FDCAN_IT_ERROR_PASSIVE | FDCAN_IT_ERROR_WARNING, 0xFFFFFFFF) != HAL_OK) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
-
     return CO_ERROR_NO;
 }
 
 #if defined(USE_OS)
+
+/**
+ * \brief           Create all OS objects for CANopen
+ * \return          `1` on success, `0` otherwise
+ */
+uint8_t
+co_drv_create_os_objects(void) {
+    /* Create new mutex for OS context */
+    if (co_mutex == NULL) {
+        const osMutexAttr_t attr = {
+            .attr_bits = osMutexRecursive,
+            .name = "co"
+        };
+        co_mutex = osMutexNew(&attr);
+    }
+
+    /* Semaphore for main app thread synchronization */
+    if (co_drv_app_thread_sync_semaphore == NULL) {
+        const osSemaphoreAttr_t attr = {
+                .name = "co_app_thread_sync"
+        };
+        co_drv_app_thread_sync_semaphore = osSemaphoreNew(1, 1, &attr);
+    }
+
+    /* Semaphore for periodic thread synchronization */
+    if (co_drv_periodic_thread_sync_semaphore == NULL) {
+        const osSemaphoreAttr_t attr = {
+                .name = "co_periodic_thread_sync"
+        };
+        co_drv_periodic_thread_sync_semaphore = osSemaphoreNew(1, 1, &attr);
+    }
+
+    return 1;
+}
 
 /**
  * \brief           Lock mutex or wait to be available
@@ -293,13 +323,14 @@ uint8_t
 co_drv_mutex_unlock(void) {
     return osMutexRelease(co_mutex) == osOK;
 }
+
 #endif /* defined(USE_OS) */
 
 /******************************************************************************/
 void
 CO_CANmodule_disable(CO_CANmodule_t *CANmodule) {
-    if (CANmodule != NULL) {
-        HAL_FDCAN_Stop(GET_FDCAN_HANDLE(CANmodule->CANptr));
+    if (CANmodule != NULL && CANmodule->CANptr != NULL) {
+        HAL_FDCAN_Stop(CANmodule->CANptr);
     }
 }
 
@@ -359,11 +390,7 @@ CO_CANtxBufferInit(
     if (CANmodule != NULL && index < CANmodule->txSize) {
         buffer = &CANmodule->txArray[index];
 
-        /*
-         * CAN identifier, DLC and rtr, bit aligned with CAN module transmit buffer
-         *
-         * Use single variable for all values
-         */
+        /* CAN identifier, DLC and rtr, bit aligned with CAN module transmit buffer */
         buffer->ident = ((uint32_t)ident & CANID_MASK)
                         | ((uint32_t)(rtr ? FLAG_RTR : 0x00));
         buffer->DLC = noOfBytes;
@@ -375,7 +402,7 @@ CO_CANtxBufferInit(
 
 /**
  * \brief           Send CAN message to network
- * This function must be called from interrupt-disabled context
+ * This function must be called with atomic access.
  *
  * \param[in]       CANmodule: CAN module instance
  * \param[in]       buffer: Pointer to buffer to transmit
@@ -410,13 +437,6 @@ prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t *buffer) {
             case 6: tx_hdr.DataLength = FDCAN_DLC_BYTES_6; break;
             case 7: tx_hdr.DataLength = FDCAN_DLC_BYTES_7; break;
             case 8: tx_hdr.DataLength = FDCAN_DLC_BYTES_8; break;
-            case 12: tx_hdr.DataLength = FDCAN_DLC_BYTES_12; break;
-            case 16: tx_hdr.DataLength = FDCAN_DLC_BYTES_16; break;
-            case 20: tx_hdr.DataLength = FDCAN_DLC_BYTES_20; break;
-            case 24: tx_hdr.DataLength = FDCAN_DLC_BYTES_24; break;
-            case 32: tx_hdr.DataLength = FDCAN_DLC_BYTES_32; break;
-            case 48: tx_hdr.DataLength = FDCAN_DLC_BYTES_48; break;
-            case 64: tx_hdr.DataLength = FDCAN_DLC_BYTES_64; break;
             default: /* Hard error... */ break;
         }
 
@@ -441,9 +461,9 @@ CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer) {
     }
 
     /*
-     * Send message over CAN network
+     * Send message to CAN network
      *
-     * Lock interrupts to make sure we have atomic operation
+     * Lock interrupts for atomic operation
      */
     CO_LOCK_CAN_SEND(CANmodule);
     if (prv_send_can_message(CANmodule, buffer)) {
@@ -556,9 +576,10 @@ static void
 prv_read_can_received_msg(FDCAN_HandleTypeDef* hfdcan, uint32_t fifo, uint32_t fifo_isrs) {
     static FDCAN_RxHeaderTypeDef rx_hdr;
     CO_CANrxMsg_t rcvMsg;
+    CO_CANrx_t *buffer = NULL;              /* receive message buffer from CO_CANmodule_t object. */
     uint16_t index;                         /* index of received message */
     uint32_t rcvMsgIdent;                   /* identifier of the received message */
-    CO_CANrx_t *buffer = NULL;              /* receive message buffer from CO_CANmodule_t object. */
+    uint8_t messageFound = 0;
 
     /* Read received message from FIFO */
     if (HAL_FDCAN_GetRxMessage(hfdcan, fifo, &rx_hdr, rcvMsg.data) != HAL_OK) {
@@ -577,14 +598,7 @@ prv_read_can_received_msg(FDCAN_HandleTypeDef* hfdcan, uint32_t fifo, uint32_t f
         case FDCAN_DLC_BYTES_6: rcvMsg.dlc = 6; break;
         case FDCAN_DLC_BYTES_7: rcvMsg.dlc = 7; break;
         case FDCAN_DLC_BYTES_8: rcvMsg.dlc = 8; break;
-        case FDCAN_DLC_BYTES_12: rcvMsg.dlc = 12; break;
-        case FDCAN_DLC_BYTES_16: rcvMsg.dlc = 16; break;
-        case FDCAN_DLC_BYTES_20: rcvMsg.dlc = 20; break;
-        case FDCAN_DLC_BYTES_24: rcvMsg.dlc = 24; break;
-        case FDCAN_DLC_BYTES_32: rcvMsg.dlc = 32; break;
-        case FDCAN_DLC_BYTES_48: rcvMsg.dlc = 48; break;
-        case FDCAN_DLC_BYTES_64: rcvMsg.dlc = 64; break;
-        default: rcvMsg.dlc = 0; break;
+        default: rcvMsg.dlc = 0; break;     /* Invalid length when more than 8 */
     }
     rcvMsgIdent = rcvMsg.ident;
 
@@ -596,19 +610,20 @@ prv_read_can_received_msg(FDCAN_HandleTypeDef* hfdcan, uint32_t fifo, uint32_t f
         __NOP();
     } else {
         /*
-         * CAN module filters are not used, message with any standard 11-bit identifier
-         * has been received. Search rxArray form CANmodule for the same CAN-ID.
+         * We are not using hardware filters, hence it is necessary
+         * to manually match received message ID with all buffers
          */
-        for (index = CANModule_local->rxSize; index > 0U; --index, ++buffer){
+        buffer = CANModule_local->rxArray;
+        for (index = CANModule_local->rxSize; index > 0U; --index, ++buffer) {
             if (((rcvMsgIdent ^ buffer->ident) & buffer->mask) == 0U) {
-                buffer = &CANModule_local->rxArray[index];
+                messageFound = 1;
                 break;
             }
         }
     }
 
     /* Call specific function, which will process the message */
-    if (buffer != NULL && buffer->CANrx_callback != NULL) {
+    if (messageFound && buffer != NULL && buffer->CANrx_callback != NULL) {
         buffer->CANrx_callback(buffer->object, (void*) &rcvMsg);
     }
 }
@@ -751,6 +766,9 @@ HAL_FDCAN_MspDeInit(FDCAN_HandleTypeDef* fdcanHandle) {
 void
 FDCAN1_IT0_IRQHandler(void) {
     HAL_FDCAN_IRQHandler(&hfdcan1);
+
+    /* Wake-up application thread */
+    CO_WAKEUP_APP_THREAD();
 }
 
 /**
@@ -759,4 +777,7 @@ FDCAN1_IT0_IRQHandler(void) {
 void
 FDCAN1_IT1_IRQHandler(void) {
     HAL_FDCAN_IRQHandler(&hfdcan1);
+
+    /* Wake-up application thread */
+    CO_WAKEUP_APP_THREAD();
 }
