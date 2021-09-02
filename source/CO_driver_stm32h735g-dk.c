@@ -188,32 +188,6 @@ CO_CANmodule_init(
     HAL_FDCAN_Stop(&hfdcan1);
     HAL_FDCAN_DeInit(&hfdcan1);
 
-    /* Setup prescaler block config for FDCAN input module */
-    switch (fdcan_br_cfg.clk_presc) {
-        case 0:
-        case 1: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV1; break;
-        case 2: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV2; break;
-        case 4: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV4; break;
-        case 6: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV6; break;
-        case 8: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV8; break;
-        case 10: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV10; break;
-        case 12: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV12; break;
-        case 14: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV14; break;
-        case 16: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV16; break;
-        case 18: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV18; break;
-        case 20: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV20; break;
-        case 22: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV22; break;
-        case 24: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV24; break;
-        case 26: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV26; break;
-        case 28: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV28; break;
-        case 30: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV30; break;
-        default: return CO_ERROR_ILLEGAL_ARGUMENT;
-    }
-    fdcan_clk.ClockCalibration = FDCAN_CLOCK_CALIBRATION_DISABLE;
-    if (HAL_FDCAN_ConfigClockCalibration(&hfdcan1, &fdcan_clk) != HAL_OK) {
-        return CO_ERROR_ILLEGAL_ARGUMENT;
-    }
-
     /* Set FDCAN parameters */
     hfdcan1.Init.FrameFormat = FDCAN_FRAME_CLASSIC;
     hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
@@ -255,6 +229,33 @@ CO_CANmodule_init(
     hfdcan1.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
     if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK) {
         /* What should we return here? */
+        return CO_ERROR_ILLEGAL_ARGUMENT;
+    }
+
+    /* Setup prescaler block config for FDCAN input module */
+    switch (fdcan_br_cfg.clk_presc) {
+        case 0:
+        case 1: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV1; break;
+        case 2: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV2; break;
+        case 4: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV4; break;
+        case 6: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV6; break;
+        case 8: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV8; break;
+        case 10: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV10; break;
+        case 12: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV12; break;
+        case 14: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV14; break;
+        case 16: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV16; break;
+        case 18: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV18; break;
+        case 20: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV20; break;
+        case 22: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV22; break;
+        case 24: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV24; break;
+        case 26: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV26; break;
+        case 28: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV28; break;
+        case 30: fdcan_clk.ClockDivider = FDCAN_CLOCK_DIV30; break;
+        default: return CO_ERROR_ILLEGAL_ARGUMENT;
+    }
+    fdcan_clk.ClockCalibration = FDCAN_CLOCK_CALIBRATION_DISABLE;
+    if (HAL_FDCAN_ConfigClockCalibration(&hfdcan1, &fdcan_clk) != HAL_OK) {
+        HAL_FDCAN_DeInit(&hfdcan1);
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
 
