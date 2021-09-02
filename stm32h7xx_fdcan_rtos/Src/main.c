@@ -43,6 +43,9 @@ thread_canopen_periodic_attr = {
 static osThreadId_t thread_canopen_handle;
 static osThreadId_t thread_canopen_periodic_handle;
 
+/* Very global variable, used for interrupt processing too */
+extern FDCAN_HandleTypeDef hfdcan1;         /* Global FDCAN instance for HAL */
+
 /* Local variables */
 static CO_t* CO;
 static uint32_t co_heap_used;
@@ -63,9 +66,6 @@ static uint8_t LED_red_status, LED_green_status;
 int
 main(void) {
     mpu_config();
-    //SCB_EnableDCache();
-    //SCB_EnableICache();
-
     __HAL_RCC_SYSCFG_CLK_ENABLE();
 
     /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -97,7 +97,7 @@ thread_init_entry(void* arg) {
     comm_printf("CANopenNode application running on STM32H735G-DK\r\n");
 
     /* Start CANopen main task */
-    thread_canopen_handle = osThreadNew(thread_canopen_entry, NULL, &thread_canopen_attr);
+    thread_canopen_handle = osThreadNew(thread_canopen_entry, &hfdcan1, &thread_canopen_attr);
 
     /* Add other application tasks... */
 
@@ -118,7 +118,7 @@ thread_init_entry(void* arg) {
  * \brief           Main CANopen application thread
  * It creates new CANopen instance and sets up CAN peripheral
  *
- * \param[in]       arg: User argument
+ * \param[in]       arg: User argument with FDCAN handle
  */
 static void
 thread_canopen_entry(void* arg) {
@@ -131,9 +131,19 @@ thread_canopen_entry(void* arg) {
         comm_printf("Error: Could not allocate CO instance\r\n");
         Error_Handler();
     }
-    comm_printf("CO allocated and ready to use with %u bytes of heap\r\n", (unsigned)co_heap_used);
+    comm_printf("CO allocated, uses %u bytes of heap memory\r\n", (unsigned)co_heap_used);
 
+    /* Set CAN pointer from argument */
+    CO->CANmodule->CANptr = arg;
 
+    /* Create OS objects */
+    co_drv_create_os_objects();
+
+    /* Get access to mutex before creating periodic thread */
+    co_drv_mutex_lock();
+
+    /* Lock access mutex prior creating periodic thread */
+    thread_canopen_periodic_handle = osThreadNew(thread_canopen_periodic_entry, NULL, &thread_canopen_periodic_attr);
 
     /* Start application */
     do {
@@ -142,20 +152,21 @@ thread_canopen_entry(void* arg) {
         uint8_t pendingNodeId = 0x12, activeNodeId = 0;
         CO_ReturnError_t err;
 
-        /* Wait rt_thread. */
+        /* Reset normal state */
         CO->CANmodule->CANnormal = false;
 
-        /* Enter CAN configuration. */
-        CO_CANsetConfigurationMode(NULL);
+        /* Enter CAN configuration. May be NULL, default one is used in driver */
+        CO_CANsetConfigurationMode(CO->CANmodule->CANptr);
         CO_CANmodule_disable(CO->CANmodule);
 
         /* Initialize CANopen */
-        if ((err = CO_CANinit(CO, NULL, pendingBitRate)) != CO_ERROR_NO) {
+        if ((err = CO_CANinit(CO, CO->CANmodule->CANptr, pendingBitRate)) != CO_ERROR_NO) {
             comm_printf("Error: CAN initialization failed: %d\n", err);
             Error_Handler();
         }
         comm_printf("CAN initialized\r\n");
 
+        /* Setup LSS block */
         CO_LSS_address_t lssAddress = {
                 .identity = {
                 .vendorID = OD_PERSIST_COMM.x1018_identity.vendor_ID,
@@ -222,13 +233,11 @@ thread_canopen_entry(void* arg) {
         /* Start CAN to receive messages */
         CO_CANsetNormalMode(CO->CANmodule);
 
-        /* Create thread for very periodic tasks */
-        if (thread_canopen_periodic_handle == NULL) {
-            thread_canopen_periodic_handle = osThreadNew(thread_canopen_periodic_entry, NULL, &thread_canopen_periodic_attr);
-        }
-
         reset = CO_RESET_NOT;
         comm_printf("CANopenNode - Running and ready to communicate...\n");
+
+        /* Release semaphore at this point. We are ready to proceed */
+        co_drv_mutex_unlock();
 
         /* Get current tick time */
         time_old = time_current = osKernelGetTickCount();
@@ -247,6 +256,9 @@ thread_canopen_entry(void* arg) {
             /* Get exclusive access to CANopen core stack. */
             co_drv_mutex_lock();
 
+            /* Set time to max sleep in next iteration */
+            max_sleep_time_us = (uint32_t)-1;
+
             /* Get current kernel tick time */
             time_current = osKernelGetTickCount();
             timeDifference_us = (time_current - time_old) * (1000000 / configTICK_RATE_HZ);
@@ -254,9 +266,6 @@ thread_canopen_entry(void* arg) {
 
             /* That's a debug message to see diff between 2 function calls */
             comm_printf("Process thread is running...timeDiff: %u ms\r\n", (unsigned)(timeDifference_us / 1000));
-
-            /* Reset max sleep time to maximum */
-            max_sleep_time_us = (uint32_t)-1;
 
             /* CANopen process */
             reset = CO_process(CO, false, timeDifference_us, &max_sleep_time_us);
@@ -323,6 +332,9 @@ thread_canopen_periodic_entry(void* arg) {
         /* Get access mutex */
         co_drv_mutex_lock();
 
+        /* Set time to maximum wait in next loop */
+        max_sleep_time_us = (uint32_t)-1;
+
         /* Verify that everything is set */
         if (CO == NULL || !CO->CANmodule->CANnormal) {
             continue;
@@ -333,8 +345,8 @@ thread_canopen_periodic_entry(void* arg) {
         timeDifference_us = (time_current - time_old) * (1000000 / configTICK_RATE_HZ);
         time_old = time_current;
 
-        /* Set time to maximum */
-        max_sleep_time_us = (uint32_t)-1;
+        /* That's a debug message to see diff between 2 function calls */
+        comm_printf("Periodic thread is running...timeDiff: %u ms\r\n", (unsigned)(timeDifference_us / 1000));
 
         /* For the moment lock interrupts for further processing */
         if (!CO->nodeIdUnconfigured && CO->CANmodule->CANnormal) {

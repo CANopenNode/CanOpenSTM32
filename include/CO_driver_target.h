@@ -150,6 +150,7 @@ typedef struct {
 #include "cmsis_os2.h"
 
 /* Functions to lock access to shared services with mutex */
+uint8_t co_drv_create_os_objects(void);
 uint8_t co_drv_mutex_lock(void);
 uint8_t co_drv_mutex_unlock(void);
 

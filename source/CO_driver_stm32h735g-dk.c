@@ -52,11 +52,7 @@ typedef struct {
     } br_nominal;
 } fdcan_br_cfg_t;
 
-/* Get FDCAN handle from CANptr variable */
-#define GET_FDCAN_HANDLE(CANptr)        ((CANptr) != NULL ? (CANptr) : &hfdcan1)
-
-/* FDCAN1 handle */
-FDCAN_HandleTypeDef hfdcan1;                    /* Global FDCAN instance for HAL */
+/* Local CAN module object */
 static CO_CANmodule_t* CANModule_local = NULL;  /* Local instance of global CAN module */
 
 /* CAN masks for identifiers */
@@ -73,6 +69,9 @@ osSemaphoreId_t co_drv_app_thread_sync_semaphore;
 /* Semaphore for periodic thread synchronization */
 osSemaphoreId_t co_drv_periodic_thread_sync_semaphore;
 #endif /* defined(USE_OS) */
+
+/* FDCAN handle object */
+FDCAN_HandleTypeDef hfdcan1;
 
 /*
  * Setup default config for 125kHz
@@ -95,14 +94,16 @@ fdcan_br_cfg = {
 void
 CO_CANsetConfigurationMode(void *CANptr) {
     /* Put CAN module in configuration mode */
-    HAL_FDCAN_Stop(GET_FDCAN_HANDLE(CANptr));
+    if (CANptr != NULL) {
+        HAL_FDCAN_Stop(CANptr);
+    }
 }
 
 /******************************************************************************/
 void
 CO_CANsetNormalMode(CO_CANmodule_t *CANmodule) {
     /* Put CAN module in normal mode */
-    if (HAL_FDCAN_Start(GET_FDCAN_HANDLE(CANmodule->CANptr)) == HAL_OK) {
+    if (CANmodule->CANptr != NULL && HAL_FDCAN_Start(CANmodule->CANptr) == HAL_OK) {
         CANmodule->CANnormal = true;
     }
 }
@@ -121,41 +122,23 @@ CO_CANmodule_init(
     FDCAN_ClkCalUnitTypeDef fdcan_clk = {0};
 
     /* verify arguments */
-    if (CANmodule == NULL || rxArray == NULL || txArray == NULL){
+    if (CANmodule == NULL || rxArray == NULL || txArray == NULL) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
 
-#if defined(USE_OS)
-    /* Create new mutex for OS context */
-    if (co_mutex == NULL) {
-        const osMutexAttr_t attr = {
-            .attr_bits = osMutexRecursive,
-            .name = "co"
-        };
-        co_mutex = osMutexNew(&attr);
+    /*
+     * Application must set CAN pointer to FDCAN handle.
+     *
+     * Only FDCAN1 is supported in current revision.
+     */
+    if (CANptr != &hfdcan1) {
+        return CO_ERROR_ILLEGAL_ARGUMENT;
     }
-    /* Semaphore for main app thread synchronization */
-    if (co_drv_app_thread_sync_semaphore == NULL) {
-        const osSemaphoreAttr_t attr = {
-                .name = "co_app_thread_sync"
-        };
-        co_drv_app_thread_sync_semaphore = osSemaphoreNew(1, 1, &attr);
-    }
-
-    /* Semaphore for periodic thread synchronization */
-    if (co_drv_periodic_thread_sync_semaphore == NULL) {
-        const osSemaphoreAttr_t attr = {
-                .name = "co_periodic_thread_sync"
-        };
-        co_drv_periodic_thread_sync_semaphore = osSemaphoreNew(1, 1, &attr);
-    }
-#endif /* defined(USE_OS) */
 
     /* Hold CANModule variable */
     CANModule_local = CANmodule;
 
     /* Configure object variables */
-    CANmodule->CANptr = &hfdcan1;
     CANmodule->rxArray = rxArray;
     CANmodule->rxSize = rxSize;
     CANmodule->txArray = txArray;
@@ -284,11 +267,44 @@ CO_CANmodule_init(
             | FDCAN_IT_ERROR_PASSIVE | FDCAN_IT_ERROR_WARNING, 0xFFFFFFFF) != HAL_OK) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
-
     return CO_ERROR_NO;
 }
 
 #if defined(USE_OS)
+
+/**
+ * \brief           Create all OS objects for CANopen
+ * \return          `1` on success, `0` otherwise
+ */
+uint8_t
+co_drv_create_os_objects(void) {
+    /* Create new mutex for OS context */
+    if (co_mutex == NULL) {
+        const osMutexAttr_t attr = {
+            .attr_bits = osMutexRecursive,
+            .name = "co"
+        };
+        co_mutex = osMutexNew(&attr);
+    }
+
+    /* Semaphore for main app thread synchronization */
+    if (co_drv_app_thread_sync_semaphore == NULL) {
+        const osSemaphoreAttr_t attr = {
+                .name = "co_app_thread_sync"
+        };
+        co_drv_app_thread_sync_semaphore = osSemaphoreNew(1, 1, &attr);
+    }
+
+    /* Semaphore for periodic thread synchronization */
+    if (co_drv_periodic_thread_sync_semaphore == NULL) {
+        const osSemaphoreAttr_t attr = {
+                .name = "co_periodic_thread_sync"
+        };
+        co_drv_periodic_thread_sync_semaphore = osSemaphoreNew(1, 1, &attr);
+    }
+
+    return 1;
+}
 
 /**
  * \brief           Lock mutex or wait to be available
@@ -307,13 +323,14 @@ uint8_t
 co_drv_mutex_unlock(void) {
     return osMutexRelease(co_mutex) == osOK;
 }
+
 #endif /* defined(USE_OS) */
 
 /******************************************************************************/
 void
 CO_CANmodule_disable(CO_CANmodule_t *CANmodule) {
-    if (CANmodule != NULL) {
-        HAL_FDCAN_Stop(GET_FDCAN_HANDLE(CANmodule->CANptr));
+    if (CANmodule != NULL && CANmodule->CANptr != NULL) {
+        HAL_FDCAN_Stop(CANmodule->CANptr);
     }
 }
 
