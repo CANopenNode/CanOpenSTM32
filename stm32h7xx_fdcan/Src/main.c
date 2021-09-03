@@ -180,6 +180,7 @@ main(void) {
              */
             if ((time_current = HAL_GetTick()) - time_old > 0) {
                 timeDifference_us = (time_current - time_old) * 1000;
+                time_old = time_current;
 
                 /* CANopen process */
                 reset = CO_process(CO, false, timeDifference_us, NULL);

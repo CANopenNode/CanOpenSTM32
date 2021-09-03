@@ -350,7 +350,7 @@ thread_canopen_periodic_entry(void* arg) {
         time_old = time_current;
 
         /* That's a debug message to see diff between 2 function calls */
-        comm_printf("Periodic thread is running...timeDiff: %u ms\r\n", (unsigned)(timeDifference_us / 1000));
+        comm_printf("Periodic thread is running...timeDiff: %u us\r\n", (unsigned)timeDifference_us);
 
         /* For the moment lock interrupts for further processing */
         if (!CO->nodeIdUnconfigured && CO->CANmodule->CANnormal) {

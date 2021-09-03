@@ -141,6 +141,9 @@ typedef struct {
 #define CO_FLAG_SET(rxNew)                      do { CO_MemoryBarrier(); rxNew = (void*)1L; } while (0)
 #define CO_FLAG_CLEAR(rxNew)                    do { CO_MemoryBarrier(); rxNew = NULL; } while (0)
 
+/* Enable TIMERNEXT feature */
+#define CO_CONFIG_GLOBAL_FLAG_TIMERNEXT         CO_CONFIG_FLAG_TIMERNEXT
+
 /* External FDCAN handle object */
 #if defined(STM32H7xx)
 extern FDCAN_HandleTypeDef hfdcan1;         /* Global FDCAN instance for HAL */
