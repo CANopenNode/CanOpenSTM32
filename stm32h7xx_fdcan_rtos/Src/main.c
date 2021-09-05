@@ -252,8 +252,9 @@ thread_canopen_entry(void* arg) {
             /*
              * This will block this thread for up to maximal time.
              *
-             * If in-between new CAN message arrives,
-             * thread will be woken-up from CAN RX interrupt
+             * If new CAN message arrives,
+             * thread will be woken-up from CAN RX interrupt,
+             * and processing will continue immediately
              */
             CO_WAIT_SYNC_APP_THREAD(max_sleep_time_us / 1000);
 
@@ -267,9 +268,6 @@ thread_canopen_entry(void* arg) {
             time_current = osKernelGetTickCount();
             timeDifference_us = (time_current - time_old) * (1000000 / configTICK_RATE_HZ);
             time_old = time_current;
-
-            /* That's a debug message to see diff between 2 function calls */
-            comm_printf("Process thread is running...timeDiff: %u ms\r\n", (unsigned)(timeDifference_us / 1000));
 
             /* CANopen process */
             reset = CO_process(CO, false, timeDifference_us, &max_sleep_time_us);
@@ -328,8 +326,8 @@ thread_canopen_periodic_entry(void* arg) {
         /*
          * This will block this thread for up to maximal time.
          *
-         * If in-between new CAN message arrives,
-         * thread will be woken-up from CAN RX interrupt
+         * This thread is woken up after timeout expires
+         * or if main CANopen thread executes
          */
         CO_WAIT_SYNC_PERIODIC_THREAD(max_sleep_time_us / 1000);
 
@@ -348,9 +346,6 @@ thread_canopen_periodic_entry(void* arg) {
         time_current = osKernelGetTickCount();
         timeDifference_us = (time_current - time_old) * (1000000 / configTICK_RATE_HZ);
         time_old = time_current;
-
-        /* That's a debug message to see diff between 2 function calls */
-        comm_printf("Periodic thread is running...timeDiff: %u ms\r\n", (unsigned)(timeDifference_us / 1000));
 
         /* For the moment lock interrupts for further processing */
         if (!CO->nodeIdUnconfigured && CO->CANmodule->CANnormal) {

@@ -141,6 +141,29 @@ typedef struct {
 #define CO_FLAG_SET(rxNew)                      do { CO_MemoryBarrier(); rxNew = (void*)1L; } while (0)
 #define CO_FLAG_CLEAR(rxNew)                    do { CO_MemoryBarrier(); rxNew = NULL; } while (0)
 
+/*
+ * Use custom library for allocation of core CanOpenNode objects
+ *
+ * LwMEM is optimized for embedded systems
+ * and supports operating systems.
+ *
+ * When OS feature is enabled, LWMEM_CFG_OS is defined in compiler settings.
+ */
+#include "lwmem/lwmem.h"
+#if defined(CO_USE_GLOBALS)
+#undef CO_USE_GLOBALS
+#endif
+#define CO_alloc(num, size)             lwmem_calloc((num), (size))
+#define CO_free(ptr)                    lwmem_free((ptr))
+
+/*
+ * Enable TIMERNEXT feature
+ *
+ * This features allows CANopen application threads,
+ * to sleep for known time interval before next processing should occur
+ */
+#define CO_CONFIG_GLOBAL_FLAG_TIMERNEXT         CO_CONFIG_FLAG_TIMERNEXT
+
 /* External FDCAN handle object */
 #if defined(STM32H7xx)
 extern FDCAN_HandleTypeDef hfdcan1;         /* Global FDCAN instance for HAL */
@@ -149,7 +172,7 @@ extern FDCAN_HandleTypeDef hfdcan1;         /* Global FDCAN instance for HAL */
 /*
  * Operating system use case.
  *
- * When OS feature is enabled, USE_OS option is defined in the compiler settings.
+ * When OS feature is enabled, USE_OS option is defined in compiler settings.
  */
 #if defined(USE_OS)
 #include "cmsis_os2.h"
@@ -178,14 +201,6 @@ extern osSemaphoreId_t co_drv_periodic_thread_sync_semaphore;
 #define CO_WAKEUP_PERIODIC_THREAD()
 
 #endif /* !defined(USE_OS) */
-
-/* Allocation management */
-#include "lwmem/lwmem.h"
-#if defined(CO_USE_GLOBALS)
-#undef CO_USE_GLOBALS
-#endif
-#define CO_alloc(num, size)             lwmem_calloc((num), (size))
-#define CO_free(ptr)                    lwmem_free((ptr))
 
 #ifdef __cplusplus
 }
