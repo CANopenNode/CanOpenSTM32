@@ -25,7 +25,7 @@ const static lwmem_region_t lwmem_default_regions[] = {
 /* Local variables */
 static CO_t* CO;
 static uint32_t co_heap_used;
-static CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
+static CO_NMT_reset_cmd_t reset = CO_RESET_COMM;
 static uint8_t LED_red_status, LED_green_status;
 
 /* Default values for CO_CANopenInit() */
@@ -41,6 +41,8 @@ static uint8_t LED_red_status, LED_green_status;
  */
 int
 main(void) {
+    uint32_t time_old, time_current;
+
     mpu_config();
     __HAL_RCC_SYSCFG_CLK_ENABLE();
 
@@ -64,170 +66,161 @@ main(void) {
     comm_printf("CO allocated, uses %u bytes of heap memory\r\n", (unsigned)co_heap_used);
     CO->CANmodule->CANptr = &hfdcan1;
 
-    /* Start application */
-    do {
-        uint16_t pendingBitRate = 125;
-        uint32_t errInfo = 0, time_old, time_current;
-        uint8_t pendingNodeId = 0x12, activeNodeId = 0;
-        CO_ReturnError_t err;
+    /* Application main while loop */
+    time_old = time_current = HAL_GetTick();
+    while (1) {
+        /* Process CANopen tasks */
+        if (reset == CO_RESET_COMM) {
+            uint16_t pendingBitRate = 125;
+            uint32_t errInfo = 0;
+            uint8_t pendingNodeId = 0x12, activeNodeId = 0;
+            CO_ReturnError_t err;
 
-        /* Wait rt_thread. */
-        CO->CANmodule->CANnormal = false;
+            /* Wait rt_thread. */
+            CO->CANmodule->CANnormal = false;
 
-        /* Enter CAN configuration. */
-        CO_CANsetConfigurationMode(CO->CANmodule->CANptr);
-        CO_CANmodule_disable(CO->CANmodule);
+            /* Enter CAN configuration. */
+            CO_CANsetConfigurationMode(CO->CANmodule->CANptr);
+            CO_CANmodule_disable(CO->CANmodule);
 
-        /* Initialize CANopen */
-        if ((err = CO_CANinit(CO, CO->CANmodule->CANptr, pendingBitRate)) != CO_ERROR_NO) {
-            comm_printf("Error: CAN initialization failed: %d\n", err);
-            Error_Handler();
-        }
-        comm_printf("CAN initialized\r\n");
-
-        CO_LSS_address_t lssAddress = {
-                .identity = {
-                .vendorID = OD_PERSIST_COMM.x1018_identity.vendor_ID,
-                .productCode = OD_PERSIST_COMM.x1018_identity.productCode,
-                .revisionNumber = OD_PERSIST_COMM.x1018_identity.revisionNumber,
-                .serialNumber = OD_PERSIST_COMM.x1018_identity.serialNumber
+            /* Initialize CANopen */
+            if ((err = CO_CANinit(CO, CO->CANmodule->CANptr, pendingBitRate)) != CO_ERROR_NO) {
+                comm_printf("Error: CAN initialization failed: %d\n", err);
+                Error_Handler();
             }
-        };
-        if ((err = CO_LSSinit(CO, &lssAddress, &pendingNodeId, &pendingBitRate)) != CO_ERROR_NO) {
-            comm_printf("Error: LSS slave initialization failed: %d\n", err);
-            Error_Handler();
-        }
-        comm_printf("LSS initialized\r\n");
+            comm_printf("CAN initialized\r\n");
 
-        /* Initialite core stack */
-        activeNodeId = pendingNodeId;
-        err = CO_CANopenInit(CO,                /* CANopen object */
-                             NULL,              /* alternate NMT */
-                             NULL,              /* alternate em */
-                             OD,                /* Object dictionary */
-                             OD_STATUS_BITS,    /* Optional OD_statusBits */
-                             NMT_CONTROL,       /* CO_NMT_control_t */
-                             FIRST_HB_TIME,     /* firstHBTime_ms */
-                             SDO_SRV_TIMEOUT_TIME, /* SDOserverTimeoutTime_ms */
-                             SDO_CLI_TIMEOUT_TIME, /* SDOclientTimeoutTime_ms */
-                             SDO_CLI_BLOCK,     /* SDOclientBlockTransfer */
-                             activeNodeId,
-                             &errInfo);
-        if (err != CO_ERROR_NO && err != CO_ERROR_NODE_ID_UNCONFIGURED_LSS) {
-            if (err == CO_ERROR_OD_PARAMETERS) {
-                comm_printf("Error: Object Dictionary entry 0x%X\n", (unsigned)errInfo);
+            CO_LSS_address_t lssAddress = {
+                    .identity = {
+                    .vendorID = OD_PERSIST_COMM.x1018_identity.vendor_ID,
+                    .productCode = OD_PERSIST_COMM.x1018_identity.productCode,
+                    .revisionNumber = OD_PERSIST_COMM.x1018_identity.revisionNumber,
+                    .serialNumber = OD_PERSIST_COMM.x1018_identity.serialNumber
+                }
+            };
+            if ((err = CO_LSSinit(CO, &lssAddress, &pendingNodeId, &pendingBitRate)) != CO_ERROR_NO) {
+                comm_printf("Error: LSS slave initialization failed: %d\n", err);
+                Error_Handler();
+            }
+            comm_printf("LSS initialized\r\n");
+
+            /* Initialite core stack */
+            activeNodeId = pendingNodeId;
+            err = CO_CANopenInit(CO,                /* CANopen object */
+                                 NULL,              /* alternate NMT */
+                                 NULL,              /* alternate em */
+                                 OD,                /* Object dictionary */
+                                 OD_STATUS_BITS,    /* Optional OD_statusBits */
+                                 NMT_CONTROL,       /* CO_NMT_control_t */
+                                 FIRST_HB_TIME,     /* firstHBTime_ms */
+                                 SDO_SRV_TIMEOUT_TIME, /* SDOserverTimeoutTime_ms */
+                                 SDO_CLI_TIMEOUT_TIME, /* SDOclientTimeoutTime_ms */
+                                 SDO_CLI_BLOCK,     /* SDOclientBlockTransfer */
+                                 activeNodeId,
+                                 &errInfo);
+            if (err != CO_ERROR_NO && err != CO_ERROR_NODE_ID_UNCONFIGURED_LSS) {
+                if (err == CO_ERROR_OD_PARAMETERS) {
+                    comm_printf("Error: Object Dictionary entry 0x%X\n", (unsigned)errInfo);
+                } else {
+                    comm_printf("Error: CANopen initialization failed: %d\n", (int)err);
+                }
+                Error_Handler();
+            }
+            comm_printf("CANOpen initialized\r\n");
+
+            /* Initialize PDO */
+            err = CO_CANopenInitPDO(CO, CO->em, OD, activeNodeId, &errInfo);
+            if (err != CO_ERROR_NO) {
+                if (err == CO_ERROR_OD_PARAMETERS) {
+                    comm_printf("Error: Object Dictionary entry 0x%X\n", (unsigned)errInfo);
+                } else {
+                    comm_printf("Error: PDO initialization failed: %d\n", (int)err);
+                }
+                Error_Handler();
+            }
+            comm_printf("CAN PDO initialized\r\n");
+
+            /* Configure Timer interrupt function for execution every 1 millisecond */
+
+            /* Configure CANopen callbacks, etc */
+            if (!CO->nodeIdUnconfigured) {
+    #if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
+                if (storageInitError != 0) {
+                    CO_errorReport(CO->em, CO_EM_NON_VOLATILE_MEMORY,
+                                   CO_EMC_HARDWARE, storageInitError);
+                }
+    #endif
             } else {
-                comm_printf("Error: CANopen initialization failed: %d\n", (int)err);
+                comm_printf("CANopenNode - Node-id not initialized\n");
+                Error_Handler();
             }
-            Error_Handler();
-        }
-        comm_printf("CANOpen initialized\r\n");
 
-        /* Initialize PDO */
-        err = CO_CANopenInitPDO(CO, CO->em, OD, activeNodeId, &errInfo);
-        if (err != CO_ERROR_NO) {
-            if (err == CO_ERROR_OD_PARAMETERS) {
-                comm_printf("Error: Object Dictionary entry 0x%X\n", (unsigned)errInfo);
-            } else {
-                comm_printf("Error: PDO initialization failed: %d\n", (int)err);
-            }
-            Error_Handler();
-        }
-        comm_printf("CAN PDO initialized\r\n");
+            /* Start CAN to receive messages */
+            CO_CANsetNormalMode(CO->CANmodule);
 
-        /* Configure Timer interrupt function for execution every 1 millisecond */
-
-        /* Configure CANopen callbacks, etc */
-        if (!CO->nodeIdUnconfigured) {
-#if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
-            if (storageInitError != 0) {
-                CO_errorReport(CO->em, CO_EM_NON_VOLATILE_MEMORY,
-                               CO_EMC_HARDWARE, storageInitError);
-            }
-#endif
-        } else {
-            comm_printf("CANopenNode - Node-id not initialized\n");
-            Error_Handler();
+            reset = CO_RESET_NOT;
+            comm_printf("CANopenNode - Running and ready to communicate...\n");
         }
 
-        /* Start CAN to receive messages */
-        CO_CANsetNormalMode(CO->CANmodule);
+        /*
+         * Process CANopenNode each millisecond
+         *
+         * For more frequent processing, a higher precision timer
+         * could be configured on STM32 (TIM6 for example) with
+         * 1MHz tick
+         */
+        if (reset == CO_RESET_NOT
+                && (time_current = HAL_GetTick()) - time_old > 0) {
+            uint32_t timeDifference_us = (time_current - time_old) * 1000;
+            time_old = time_current;
 
-        reset = CO_RESET_NOT;
-        comm_printf("CANopenNode - Running and ready to communicate...\n");
+            /* CANopen process */
+            reset = CO_process(CO, false, timeDifference_us, NULL);
 
-        /* Get current time */
-        time_old = time_current = HAL_GetTick();
-        while (reset == CO_RESET_NOT) {
-            /* loop for normal program execution */
-            /* get time difference since last function call */
-            uint32_t timeDifference_us;
+            /* Process LEDs and react only on change */
+            LED_red_status = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
+            LED_green_status = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
+            if (LED_red_status && !LL_GPIO_IsOutputPinSet(LED_RED_GPIO_Port, LED_RED_Pin)) {
+                LL_GPIO_SetOutputPin(LED_RED_GPIO_Port, LED_RED_Pin);
+            } else if (!LED_red_status && LL_GPIO_IsOutputPinSet(LED_RED_GPIO_Port, LED_RED_Pin)) {
+                LL_GPIO_ResetOutputPin(LED_RED_GPIO_Port, LED_RED_Pin);
+            }
+            if (LED_green_status && !LL_GPIO_IsOutputPinSet(LED_GREEN_GPIO_Port, LED_GREEN_Pin)) {
+                LL_GPIO_SetOutputPin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+            } else if (!LED_green_status && LL_GPIO_IsOutputPinSet(LED_GREEN_GPIO_Port, LED_GREEN_Pin)) {
+                LL_GPIO_ResetOutputPin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+            }
 
             /*
-             * Put your non-blocking application processing here
+             * Timer periodic actions
              *
-             *
-             *
-             *
+             * These should be put to fixed-period timer instead
              */
-
-            /*
-             * Process CANopenNode each millisecond
-             *
-             * For more frequent processing, a higher precision timer
-             * could be configured on STM32 (TIM6 for example) with
-             * 1MHz tick
-             */
-            if ((time_current = HAL_GetTick()) - time_old > 0) {
-                timeDifference_us = (time_current - time_old) * 1000;
-                time_old = time_current;
-
-                /* CANopen process */
-                reset = CO_process(CO, false, timeDifference_us, NULL);
-
-                /* Process LEDs and react only on change */
-                LED_red_status = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
-                LED_green_status = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
-                if (LED_red_status && !LL_GPIO_IsOutputPinSet(LED_RED_GPIO_Port, LED_RED_Pin)) {
-                    LL_GPIO_SetOutputPin(LED_RED_GPIO_Port, LED_RED_Pin);
-                } else if (!LED_red_status && LL_GPIO_IsOutputPinSet(LED_RED_GPIO_Port, LED_RED_Pin)) {
-                    LL_GPIO_ResetOutputPin(LED_RED_GPIO_Port, LED_RED_Pin);
-                }
-                if (LED_green_status && !LL_GPIO_IsOutputPinSet(LED_GREEN_GPIO_Port, LED_GREEN_Pin)) {
-                    LL_GPIO_SetOutputPin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
-                } else if (!LED_green_status && LL_GPIO_IsOutputPinSet(LED_GREEN_GPIO_Port, LED_GREEN_Pin)) {
-                    LL_GPIO_ResetOutputPin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
-                }
-
-                /*
-                 * Timer periodic actions
-                 *
-                 * These should be put to fixed-period timer instead
-                 */
-                CO_LOCK_OD(CO->CANmodule);
-                if (!CO->nodeIdUnconfigured && CO->CANmodule->CANnormal) {
-                    bool_t syncWas = false;
+            CO_LOCK_OD(CO->CANmodule);
+            if (!CO->nodeIdUnconfigured && CO->CANmodule->CANnormal) {
+                bool_t syncWas = false;
 
 #if (CO_CONFIG_SYNC) & CO_CONFIG_SYNC_ENABLE
-                    syncWas = CO_process_SYNC(CO, timeDifference_us, NULL);
+                syncWas = CO_process_SYNC(CO, timeDifference_us, NULL);
 #endif
 #if (CO_CONFIG_PDO) & CO_CONFIG_RPDO_ENABLE
-                    CO_process_RPDO(CO, syncWas, timeDifference_us, NULL);
+                CO_process_RPDO(CO, syncWas, timeDifference_us, NULL);
 #endif
 #if (CO_CONFIG_PDO) & CO_CONFIG_TPDO_ENABLE
-                    CO_process_TPDO(CO, syncWas, timeDifference_us, NULL);
+                CO_process_TPDO(CO, syncWas, timeDifference_us, NULL);
 #endif
-                }
-                CO_UNLOCK_OD(CO->CANmodule);
             }
+            CO_UNLOCK_OD(CO->CANmodule);
         }
-    } while (reset == CO_RESET_NOT);
 
-    comm_printf("CAN finished...expecting to reset the device..\r\n");
+        /* Check what is happening with reset */
+        if (reset != CO_RESET_NOT && reset != CO_RESET_COMM) {
+            /* Analyze reset status and exit.. */
+            /* and save data to non-volatile memory */
+            NVIC_SystemReset();
+        }
 
-    /* Final end loop that never ends */
-    while (1) {
-        NVIC_SystemReset();
+        /* Other application tasks... */
     }
 }
 
