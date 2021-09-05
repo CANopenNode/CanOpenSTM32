@@ -252,8 +252,9 @@ thread_canopen_entry(void* arg) {
             /*
              * This will block this thread for up to maximal time.
              *
-             * If in-between new CAN message arrives,
-             * thread will be woken-up from CAN RX interrupt
+             * If new CAN message arrives,
+             * thread will be woken-up from CAN RX interrupt,
+             * and processing will continue immediately
              */
             CO_WAIT_SYNC_APP_THREAD(max_sleep_time_us / 1000);
 
@@ -325,8 +326,8 @@ thread_canopen_periodic_entry(void* arg) {
         /*
          * This will block this thread for up to maximal time.
          *
-         * If in-between new CAN message arrives,
-         * thread will be woken-up from CAN RX interrupt
+         * This thread is woken up after timeout expires
+         * or if main CANopen thread executes
          */
         CO_WAIT_SYNC_PERIODIC_THREAD(max_sleep_time_us / 1000);
 
