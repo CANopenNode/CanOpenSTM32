@@ -166,7 +166,7 @@ CO_CANmodule_init(
     /* STM32H7 FDCAN related configuration */
     /***************************************/
 
-    /* Set instance for the beginning */
+    /* Set instance at the beginning */
     hfdcan1.Instance = FDCAN1;
     HAL_FDCAN_Stop(&hfdcan1);
     HAL_FDCAN_DeInit(&hfdcan1);
