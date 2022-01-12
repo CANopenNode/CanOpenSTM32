@@ -44,6 +44,7 @@ int
 main(void) {
     uint32_t time_old, time_current;
 
+    /* Setup MPU to prevent any Cortex-M speculative access */
     mpu_config();
     __HAL_RCC_SYSCFG_CLK_ENABLE();
 
@@ -53,7 +54,7 @@ main(void) {
     /* Configure the system clock */
     SystemClock_Config();
 
-    /* Initialize all configured peripherals */
+    /* Initialize all peripherals */
     lwmem_assignmem(lwmem_default_regions);
     led_btn_init();
     comm_init();
@@ -72,8 +73,8 @@ main(void) {
     while (1) {
         /* Process CANopen tasks */
         if (reset == CO_RESET_COMM) {
-            uint16_t pendingBitRate = 125;
             uint32_t errInfo = 0;
+            uint16_t pendingBitRate = 125;
             uint8_t pendingNodeId = 0x12, activeNodeId = 0;
             CO_ReturnError_t err;
 
@@ -91,8 +92,9 @@ main(void) {
             }
             comm_printf("CAN initialized\r\n");
 
+            /* Setup LSS */
             CO_LSS_address_t lssAddress = {
-                    .identity = {
+                .identity = {
                     .vendorID = OD_PERSIST_COMM.x1018_identity.vendor_ID,
                     .productCode = OD_PERSIST_COMM.x1018_identity.productCode,
                     .revisionNumber = OD_PERSIST_COMM.x1018_identity.revisionNumber,

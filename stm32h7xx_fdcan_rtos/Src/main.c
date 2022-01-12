@@ -69,6 +69,7 @@ static uint8_t LED_red_status, LED_green_status;
  */
 int
 main(void) {
+    /* Setup MPU to prevent any Cortex-M speculative access */
     mpu_config();
     __HAL_RCC_SYSCFG_CLK_ENABLE();
 

@@ -17,6 +17,11 @@ It also includes built-in programmer and virtual COM port for communication, hen
 
 > FDCAN IP block is same for any STM32H7xx MCU family, hence migration to your custom board should be straight-forward.
 
+### VSCode support
+
+Examples come ready for CMake and VSCode support.
+[This tutorial](https://github.com/MaJerle/stm32-cube-cmake-vscode) explains all VSCode and CMake pre-requisities users should have installed.
+
 ### Features
 
 * Runs out of the box on STM32H735G-DK board
@@ -26,14 +31,14 @@ It also includes built-in programmer and virtual COM port for communication, hen
 * Debug messages are available through VCP COM port at `115200` bauds
 * Can be used as a reference code for end product
 
-### Clone or update
+### Clone project or update to latest
 
 Clone the project from git repository and get submodules:
 
 ```
 git clone https://github.com/CANopenNode/CANopenSTM32
 cd CANopenSTM32
-git submodule update --init --recursive
+git submodule update --init --remote
 ```
 
 Update an existing project including submodules:
@@ -41,7 +46,7 @@ Update an existing project including submodules:
 ```
 cd CANopenSTM32
 git pull
-git submodule update --init --recursive
+git submodule update --init --remote
 ```
 
 ## License
