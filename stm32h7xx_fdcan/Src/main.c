@@ -18,7 +18,7 @@ static void mpu_config(void);
 
 /* Lwmem buffer for allocation */
 static uint8_t lwmem_buffer[0x4000];
-const static lwmem_region_t lwmem_default_regions[] = {
+static const lwmem_region_t lwmem_default_regions[] = {
         {lwmem_buffer, sizeof(lwmem_buffer)},
         {NULL, 0}
 };

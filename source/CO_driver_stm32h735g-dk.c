@@ -79,7 +79,7 @@ FDCAN_HandleTypeDef hfdcan1;
  * Settings assume FDCAN input kernel clock is 80 MHz.
  * See \ref fdcan_br_cfg_t for global options
  */
-const static fdcan_br_cfg_t
+static const fdcan_br_cfg_t
 fdcan_br_cfg = {
     .clk_presc = 4,                             /* Decrease input clock to 20 MHz */
     .br_nominal = {                             /* Configure br nominal to 125 kHz */

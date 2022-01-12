@@ -24,6 +24,8 @@
 *.i
 *.txt
 !docs/*.txt
+!CMakeLists.txt
+!CMakeLists*.txt
 RTE/
 
 *debug
@@ -71,6 +73,7 @@ RTE/
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
+[Dd]ebug*/
 x64/
 x86/
 bld/
@@ -78,6 +81,7 @@ bld/
 [Oo]bj/
 [Ll]og/
 _build/
+build/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
@@ -392,3 +396,6 @@ Project outputs*
 History/
 *.SchDocPreview
 *.$$$Preview
+
+# VSCode projects
+project_vscode_compiled.exe
