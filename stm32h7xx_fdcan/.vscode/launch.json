@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Microcontroller - STLink-V3",
+            "name": "Debug Microcontroller - ST-Link",
             "cwd": "${workspaceFolder}",
             "type": "cortex-debug",
             "executable": "${command:cmake.launchTargetPath}", //or fixed file path: build/stm32h735g-dk-led.elf
@@ -14,10 +14,10 @@
             "device": "",                       //MCU used, ex. "STM32H735IG"
             "interface": "swd",
             "serialNumber": "",                 //Set ST-Link ID if you use multiple at the same time
-            "runToMain": true,
-            "svdFile": "path/to/file.svd",      //Path to SVD file to see registers
+            "runToEntryPoint": "main",
+            "svdFile": "",                      //Path to SVD file to see registers
             "v1": false,
-            "showDevDebugOutput": true,
+            "showDevDebugOutput": "both",
 
             /* Will get automatically detected if STM32CubeIDE is installed to default directory
                or it can be manually provided if necessary.. */
