@@ -8,7 +8,10 @@ Examples are developed in [STM32CubeIDE](https://www.st.com/en/development-tools
 official ST development studio for any STM32 microcontroller.
 You can directly open projects run prepared examples on the board.
 
-Currently used board is [STM32H735G-DK](https://www.st.com/en/evaluation-tools/stm32h735g-dk.html).
+## Supported boards and MCUs
+
+
+### STM32H735G-DK - [Link](https://www.st.com/en/evaluation-tools/stm32h735g-dk.html).
 It has many features of STM32H7xx series and includes 3 CAN transceivers on the board.
 You do not need any additional hardware to connect to existing CAN network.
 It also includes built-in programmer and virtual COM port for communication, hence evaluation is quick and easy.
@@ -17,6 +20,16 @@ It also includes built-in programmer and virtual COM port for communication, hen
 
 > FDCAN IP block is same for any STM32H7xx MCU family, hence migration to your custom board should be straight-forward.
 
+### [NUCLEO-F303ZE](https://www.st.com/en/evaluation-tools/nucleo-f303ze.html) + [MAX33040ESHLD](https://www.digikey.ie/en/products/detail/analog-devices-inc-maxim-integrated/MAX33040ESHLD/13558019)
+
+Nucleo-F303ZE includes an arduino compatible headers which can be used to add MAX33040ESHLD to it and this bundle provide  the minimum required components to establish a CAN communication and CanOpenNode on top of that.
+
+This project is tied to the CubeMX configuration, so it is up to the user to provide compatible configuration using CubeMX (bitrate, interrupt activiation and etc). (In this example, the CAN_MSP)
+
+
+
+
+This implementation uses the STM32CubeMXIDE and STM32CubeMX code generator to config CAN
 ### Features
 
 * Runs out of the box on STM32H735G-DK board
