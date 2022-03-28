@@ -61,6 +61,7 @@ uint8_t LED_red, LED_green;
 
 /* main ***********************************************************************/
 int main_canopen (void){
+	uint32_t time_old, time_current;
     CO_ReturnError_t err;
     CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
     uint32_t heapMemoryUsed;
@@ -218,16 +219,21 @@ int main_canopen (void){
 
         log_printf("CANopenNode - Running...\n");
         fflush(stdout);
+        time_old = time_current = HAL_GetTick();
 
         while(reset == CO_RESET_NOT){
-/* loop for normal program execution ******************************************/
+        	/* loop for normal program execution ******************************************/
             /* get time difference since last function call */
-            uint32_t timeDifference_us = 500;
+        	time_current = HAL_GetTick();
 
-            /* CANopen process */
-            reset = CO_process(CO, false, timeDifference_us, NULL);
-            LED_red = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
-            LED_green = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
+        	if((time_current - time_old) > 0){ // More than 1ms elapsed
+                /* CANopen process */
+                uint32_t timeDifference_us = (time_current - time_old) * 1000;
+                time_old = time_current;
+                reset = CO_process(CO, false, timeDifference_us, NULL);
+                LED_red = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
+                LED_green = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
+        	}
 
             /* Nonblocking application code may go here. */
 

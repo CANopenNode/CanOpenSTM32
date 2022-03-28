@@ -21,8 +21,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
 #ifndef CO_DRIVER_TARGET_H
 #define CO_DRIVER_TARGET_H
 
@@ -34,7 +32,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include <can.h>
+/* Include STM32H7 HAL driver */
+#include "stm32f3xx_hal.h"
 
 #ifdef CO_DRIVER_CUSTOM
 #include "CO_driver_custom.h"
@@ -46,7 +45,6 @@ extern "C" {
 
 /* Stack configuration override default values.
  * For more information see file CO_config.h. */
-
 
 /* Basic definitions. If big endian, CO_SWAP_xx macros must swap bytes. */
 #define CO_LITTLE_ENDIAN
@@ -61,19 +59,21 @@ typedef uint_fast8_t            bool_t;
 typedef float                   float32_t;
 typedef double                  float64_t;
 
+/**
+ * \brief           CAN RX message for platform
+ *
+ * This is platform specific one
+ */
 typedef struct {
-	CAN_RxHeaderTypeDef RxHeader;
-	uint32_t ident;
-	uint8_t DLC;
-	uint8_t data[8];
+    uint32_t ident;                             /*!< Standard identifier */
+    uint8_t dlc;                                /*!< Data length */
+    uint8_t data[8];                            /*!< Received data */
 } CO_CANrxMsg_t;
 
-
-
 /* Access to received CAN message */
-#define CO_CANrxMsg_readIdent(msg) ((uint16_t)(((CO_CANrxMsg_t *)(msg))->ident))
-#define CO_CANrxMsg_readDLC(msg)   ((uint8_t)(((CO_CANrxMsg_t *)(msg))->DLC))
-#define CO_CANrxMsg_readData(msg)  ((uint8_t *)(((CO_CANrxMsg_t *)(msg))->data))
+#define CO_CANrxMsg_readIdent(msg)          ((uint16_t)(((CO_CANrxMsg_t *)(msg)))->ident)
+#define CO_CANrxMsg_readDLC(msg)            ((uint8_t)(((CO_CANrxMsg_t *)(msg)))->dlc)
+#define CO_CANrxMsg_readData(msg)           ((uint8_t *)(((CO_CANrxMsg_t *)(msg)))->data)
 
 /* Received message object */
 typedef struct {
@@ -94,7 +94,7 @@ typedef struct {
 
 /* CAN module object */
 typedef struct {
-	CAN_HandleTypeDef   *CANptr; /**< From CO_CANmodule_init() */
+	 void *CANptr;
     CO_CANrx_t *rxArray;
     uint16_t rxSize;
     CO_CANtx_t *txArray;
@@ -106,8 +106,12 @@ typedef struct {
     volatile bool_t firstCANtxMessage;
     volatile uint16_t CANtxCount;
     uint32_t errOld;
-} CO_CANmodule_t;
 
+    /* STM32 specific features */
+    uint32_t primask_send;                  /* Primask register for interrupts for send operation */
+    uint32_t primask_emcy;                  /* Primask register for interrupts for emergency operation */
+    uint32_t primask_od;                    /* Primask register for interrupts for send operation */
+} CO_CANmodule_t;
 
 /* Data storage object for one entry */
 typedef struct {
@@ -119,25 +123,84 @@ typedef struct {
     void *addrNV;
 } CO_storage_entry_t;
 
-
 /* (un)lock critical section in CO_CANsend() */
-#define CO_LOCK_CAN_SEND(CAN_MODULE)
-#define CO_UNLOCK_CAN_SEND(CAN_MODULE)
+#define CO_LOCK_CAN_SEND(CAN_MODULE)            do { (CAN_MODULE)->primask_send = __get_PRIMASK(); __disable_irq(); } while (0)
+#define CO_UNLOCK_CAN_SEND(CAN_MODULE)          __set_PRIMASK((CAN_MODULE)->primask_send)
 
 /* (un)lock critical section in CO_errorReport() or CO_errorReset() */
-#define CO_LOCK_EMCY(CAN_MODULE)
-#define CO_UNLOCK_EMCY(CAN_MODULE)
+#define CO_LOCK_EMCY(CAN_MODULE)                do { (CAN_MODULE)->primask_emcy = __get_PRIMASK(); __disable_irq(); } while (0)
+#define CO_UNLOCK_EMCY(CAN_MODULE)              __set_PRIMASK((CAN_MODULE)->primask_emcy)
 
 /* (un)lock critical section when accessing Object Dictionary */
-#define CO_LOCK_OD(CAN_MODULE)
-#define CO_UNLOCK_OD(CAN_MODULE)
+#define CO_LOCK_OD(CAN_MODULE)                  do { (CAN_MODULE)->primask_od = __get_PRIMASK(); __disable_irq(); } while (0)
+#define CO_UNLOCK_OD(CAN_MODULE)                __set_PRIMASK((CAN_MODULE)->primask_od)
 
 /* Synchronization between CAN receive and message processing threads. */
 #define CO_MemoryBarrier()
-#define CO_FLAG_READ(rxNew) ((rxNew) != NULL)
-#define CO_FLAG_SET(rxNew) {CO_MemoryBarrier(); rxNew = (void*)1L;}
-#define CO_FLAG_CLEAR(rxNew) {CO_MemoryBarrier(); rxNew = NULL;}
+#define CO_FLAG_READ(rxNew)                     ((rxNew) != NULL)
+#define CO_FLAG_SET(rxNew)                      do { CO_MemoryBarrier(); rxNew = (void*)1L; } while (0)
+#define CO_FLAG_CLEAR(rxNew)                    do { CO_MemoryBarrier(); rxNew = NULL; } while (0)
 
+/*
+ * Use custom library for allocation of core CanOpenNode objects
+ *
+ * LwMEM is optimized for embedded systems
+ * and supports operating systems.
+ *
+ * When OS feature is enabled, LWMEM_CFG_OS is defined in compiler settings.
+ */
+//#include "lwmem/lwmem.h"
+#if defined(CO_USE_GLOBALS)
+#undef CO_USE_GLOBALS
+#endif
+//#define CO_alloc(num, size)             lwmem_calloc((num), (size))
+//#define CO_free(ptr)                    lwmem_free((ptr))
+
+/*
+ * Enable TIMERNEXT feature
+ *
+ * This features allows CANopen application threads,
+ * to sleep for known time interval before next processing should occur
+ */
+#define CO_CONFIG_GLOBAL_FLAG_TIMERNEXT         CO_CONFIG_FLAG_TIMERNEXT
+
+/* External FDCAN handle object */
+#if defined(STM32H7xx)
+extern FDCAN_HandleTypeDef hfdcan1;         /* Global FDCAN instance for HAL */
+#endif /* defined(STM32H7xx) */
+
+/*
+ * Operating system use case.
+ *
+ * When OS feature is enabled, USE_OS option is defined in compiler settings.
+ */
+#if defined(USE_OS)
+#include "cmsis_os2.h"
+
+/* Functions to lock access to shared services with mutex */
+uint8_t co_drv_create_os_objects(void);
+uint8_t co_drv_mutex_lock(void);
+uint8_t co_drv_mutex_unlock(void);
+
+/* Semaphore for main app thread synchronization */
+extern osSemaphoreId_t co_drv_app_thread_sync_semaphore;
+
+/* Semaphore for periodic thread synchronization */
+extern osSemaphoreId_t co_drv_periodic_thread_sync_semaphore;
+
+/* Wakeup specific threads */
+#define CO_WAKEUP_APP_THREAD()                          osSemaphoreRelease(co_drv_app_thread_sync_semaphore)
+#define CO_WAKEUP_PERIODIC_THREAD()                     osSemaphoreRelease(co_drv_periodic_thread_sync_semaphore)
+#define CO_WAIT_SYNC_APP_THREAD(max_time_in_ms)         osSemaphoreAcquire(co_drv_app_thread_sync_semaphore, (max_time_in_ms))
+#define CO_WAIT_SYNC_PERIODIC_THREAD(max_time_in_ms)    osSemaphoreAcquire(co_drv_periodic_thread_sync_semaphore, (max_time_in_ms))
+
+#else /* defined(USE_OS) */
+
+/* Empty definitions for non-OS implementation */
+#define CO_WAKEUP_APP_THREAD()
+#define CO_WAKEUP_PERIODIC_THREAD()
+
+#endif /* !defined(USE_OS) */
 
 #ifdef __cplusplus
 }
