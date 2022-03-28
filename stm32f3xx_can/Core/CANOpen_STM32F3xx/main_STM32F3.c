@@ -58,6 +58,7 @@
 CO_t *CO = NULL; /* CANopen object */
 uint8_t LED_red, LED_green;
 
+uint32_t CounterVariableA = 0;
 
 /* main ***********************************************************************/
 int main_canopen (void){
@@ -236,7 +237,7 @@ int main_canopen (void){
         	}
 
             /* Nonblocking application code may go here. */
-
+        	OD_get_u32(OD_find(OD, 0x6000), 0x00, &CounterVariableA, false);
             /* Process automatic storage */
 
             /* optional sleep for short time */
