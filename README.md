@@ -9,7 +9,7 @@ official ST development studio for any STM32 microcontroller.
 You can directly open projects run prepared examples on the board.
 
 ## Supported boards and MCUs
-
+ 
 
 ### STM32H735G-DK - [Link](https://www.st.com/en/evaluation-tools/stm32h735g-dk.html).
 It has many features of STM32H7xx series and includes 3 CAN transceivers on the board.
@@ -20,16 +20,19 @@ It also includes built-in programmer and virtual COM port for communication, hen
 
 > FDCAN IP block is same for any STM32H7xx MCU family, hence migration to your custom board should be straight-forward.
 
-### [NUCLEO-F303ZE](https://www.st.com/en/evaluation-tools/nucleo-f303ze.html) + [MAX33040ESHLD](https://www.digikey.ie/en/products/detail/analog-devices-inc-maxim-integrated/MAX33040ESHLD/13558019)
+### [NUCLEO-F303ZE](https://www.st.com/en/evaluation-tools/nucleo-f303ze.html) / [NUCLEO-F072RB](https://www.st.com/en/evaluation-tools/nucleo-f072rb.html) + [MAX33040ESHLD](https://www.digikey.ie/en/products/detail/analog-devices-inc-maxim-integrated/MAX33040ESHLD/13558019)
 
-Nucleo-F303ZE includes an arduino compatible headers which can be used to add MAX33040ESHLD to it and this bundle provide  the minimum required components to establish a CAN communication and CanOpenNode on top of that.
+Nucleo includes an arduino compatible headers which can be used to add MAX33040ESHLD to it and this bundle provide  the minimum required components to establish a CAN communication and CanOpenNode on top of that.
 
-This project is tied to the CubeMX configuration, so it is up to the user to provide compatible configuration using CubeMX (bitrate, interrupt activiation and etc). (In this example, the CAN_MSP)
+This project is tied to the CubeMX configuration, so it is up to the user to provide compatible configuration using CubeMX (bitrate, interrupt activiation and etc). (In this example, the MX_CAN_Init function will be called by CO_Driver_STM32Fxxx.c)
 
+#### When using/porting NUCLEO examples do not forget to : 
+- Set the right baudrate for CAN (with TimeSeg1 set to 10 and TimeSeg2 set to 1) in the CubeMX GUI
+- Activate the RX and TX interrupt on the CAN peripheral
+- Configure a timer for a 1ms overflow interrupt (TIM17 used in these examples)
+- From `Prject Manager` tab in the STM32Cube and `Code Generator` section, choose Generate peripheral initialization as a pair of '.c/.h' files per peripheral to create `Tim.H` and `can.h` files
+- if copying `CANOpenNode` folder entirely, you should remove or filter `example` folder in that directory.
 
-
-
-This implementation uses the STM32CubeMXIDE and STM32CubeMX code generator to config CAN
 ### Features
 
 * Runs out of the box on STM32H735G-DK board
