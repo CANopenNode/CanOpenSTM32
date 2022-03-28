@@ -186,7 +186,7 @@ CO_ReturnError_t CO_CANmodule_init(CO_CANmodule_t *CANmodule, void      *HALCanO
 		Prescaler = 10;
 		break;
 	case 250:
-		Prescaler = 8;
+		Prescaler = 12;
 		break;
 	case 125:
 		Prescaler = 40;
