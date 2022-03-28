@@ -34,6 +34,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <can.h>
+
 #ifdef CO_DRIVER_CUSTOM
 #include "CO_driver_custom.h"
 #endif
@@ -51,6 +53,7 @@ extern "C" {
 #define CO_SWAP_16(x) x
 #define CO_SWAP_32(x) x
 #define CO_SWAP_64(x) x
+
 /* NULL is defined in stddef.h */
 /* true and false are defined in stdbool.h */
 /* int8_t to uint64_t are defined in stdint.h */
@@ -58,22 +61,19 @@ typedef uint_fast8_t            bool_t;
 typedef float                   float32_t;
 typedef double                  float64_t;
 
-/**
- * \brief           CAN RX message for platform
- *
- * This is platform specific one
- */
 typedef struct {
-    uint32_t ident;                             /*!< Standard identifier */
-    uint8_t dlc;                                /*!< Data length */
-    uint8_t data[8];                            /*!< Received data */
+	CAN_RxHeaderTypeDef RxHeader;
+	uint32_t ident;
+	uint8_t DLC;
+	uint8_t data[8];
 } CO_CANrxMsg_t;
 
 
+
 /* Access to received CAN message */
-#define CO_CANrxMsg_readIdent(msg) ((uint16_t)0)
-#define CO_CANrxMsg_readDLC(msg)   ((uint8_t)0)
-#define CO_CANrxMsg_readData(msg)  ((uint8_t *)NULL)
+#define CO_CANrxMsg_readIdent(msg) ((uint16_t)(((CO_CANrxMsg_t *)(msg))->ident))
+#define CO_CANrxMsg_readDLC(msg)   ((uint8_t)(((CO_CANrxMsg_t *)(msg))->DLC))
+#define CO_CANrxMsg_readData(msg)  ((uint8_t *)(((CO_CANrxMsg_t *)(msg))->data))
 
 /* Received message object */
 typedef struct {
@@ -94,7 +94,7 @@ typedef struct {
 
 /* CAN module object */
 typedef struct {
-	 void *CANptr;
+	CAN_HandleTypeDef   *CANptr; /**< From CO_CANmodule_init() */
     CO_CANrx_t *rxArray;
     uint16_t rxSize;
     CO_CANtx_t *txArray;
@@ -107,6 +107,7 @@ typedef struct {
     volatile uint16_t CANtxCount;
     uint32_t errOld;
 } CO_CANmodule_t;
+
 
 /* Data storage object for one entry */
 typedef struct {
