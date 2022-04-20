@@ -32,10 +32,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Include STM32f0 HAL driver */
-#include "stm32f0xx_hal.h"
+/* Include STM32H7 HAL driver */
+#include "stm32g0xx_hal.h"
 
-#undef CO_CONFIG_STORAGE_ENABLE   // In this port the storage functionality has not been implemented
+#undef CO_CONFIG_STORAGE_ENABLE
 
 #ifdef CO_DRIVER_CUSTOM
 #include "CO_driver_custom.h"
@@ -96,7 +96,7 @@ typedef struct {
 
 /* CAN module object */
 typedef struct {
-	 void *CANptr;
+    void *CANptr;
     CO_CANrx_t *rxArray;
     uint16_t rxSize;
     CO_CANtx_t *txArray;

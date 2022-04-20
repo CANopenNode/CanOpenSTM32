@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>CANOpenNode-NUCLEO-STM32F072</name>
+	<name>CANOpenNode-Nucleo-STM32G0C1E-EV</name>
 	<comment></comment>
 	<projects>
 	</projects>
@@ -33,7 +33,7 @@
 		<link>
 			<name>CANopenNode</name>
 			<type>2</type>
-			<location>PARENT-1-PROJECT_LOC/CANopenNode</location>
+            <locationURI>PARENT-1-PROJECT_LOC/CANopenNode</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>

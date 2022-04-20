@@ -11,7 +11,7 @@ You can directly open projects run prepared examples on the board.
 ## Supported boards and MCUs
  
 
-### STM32H735G-DK - [Link](https://www.st.com/en/evaluation-tools/stm32h735g-dk.html).
+### [STM32H735G-DK](https://www.st.com/en/evaluation-tools/stm32h735g-dk.html).
 It has many features of STM32H7xx series and includes 3 CAN transceivers on the board.
 You do not need any additional hardware to connect to existing CAN network.
 It also includes built-in programmer and virtual COM port for communication, hence evaluation is quick and easy.
@@ -26,12 +26,20 @@ Nucleo includes an arduino compatible headers which can be used to add MAX33040E
 
 This project is tied to the CubeMX configuration, so it is up to the user to provide compatible configuration using CubeMX (bitrate, interrupt activiation and etc). (In this example, the MX_CAN_Init function will be called by CO_Driver_STM32Fxxx.c)
 
+### [STM32G0C1VE-EV](https://www.st.com/en/evaluation-tools/stm32g0c1e-ev.html)
+The STM32G0C1E-EV Evaluation board is a high-end development platform for the STM32G0C1VET6 microcontroller. It has many features including two CAN FD controller and physical layer on board.
+You don't need any additional hardware to connect to existing CAN network.
+It also includes built-in programmer and virtual COM port for communication, hence evaluation is quick and easy.
+> CanOpen demo works at `FDCAN1` port. Use connector *CN12*.
+> FDCAN IP block is same for any STM32G0xx MCU family, hence migration to your custom board should be straight-forward.
+
 #### When using/porting NUCLEO examples do not forget to : 
 - Set the right baudrate for CAN (with TimeSeg1 set to 10 and TimeSeg2 set to 1) in the CubeMX GUI
 - Activate the RX and TX interrupt on the CAN peripheral
 - Configure a timer for a 1ms overflow interrupt (TIM17 used in these examples)
 - From `Prject Manager` tab in the STM32Cube and `Code Generator` section, choose Generate peripheral initialization as a pair of '.c/.h' files per peripheral to create `Tim.H` and `can.h` files
 - if copying `CANOpenNode` folder entirely, you should remove or filter `example` folder in that directory.
+- if pulling the main `CANOpenNode`, please set  `CO_CONFIG_STORAGE_ENABLE`  to `0x00` in `301\CO_config.h`, as storage is not yet impelemented in this port.
 
 ### Features
 
