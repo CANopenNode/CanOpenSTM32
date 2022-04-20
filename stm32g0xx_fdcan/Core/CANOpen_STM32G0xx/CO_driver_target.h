@@ -35,6 +35,8 @@
 /* Include STM32H7 HAL driver */
 #include "stm32g0xx_hal.h"
 
+#undef CO_CONFIG_STORAGE_ENABLE
+
 #ifdef CO_DRIVER_CUSTOM
 #include "CO_driver_custom.h"
 #endif
