@@ -190,7 +190,6 @@ int main_canopen (void){
             return 0;
         }
 
-
         /* Configure Timer interrupt function for execution every 1 millisecond */
         HAL_TIM_Base_Start_IT(&htim17); //1ms interrupt
 
@@ -220,7 +219,7 @@ int main_canopen (void){
         log_printf("CANopenNode - Running...\n");
         fflush(stdout);
         time_old = time_current = HAL_GetTick();
-        uint32_t counter = 0;
+
         while(reset == CO_RESET_NOT){
         	/* loop for normal program execution ******************************************/
             /* get time difference since last function call */
@@ -234,11 +233,6 @@ int main_canopen (void){
                 LED_red = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
                 LED_green = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
         	}
-
-        	OD_set_u32(OD_find(OD, 0x6000), 0x00, counter, false);
-        	counter++;
-        	CO_TPDOsendRequest(&CO->TPDO[4]);
-        	HAL_Delay(10);
 
             /* Nonblocking application code may go here. */
 
