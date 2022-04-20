@@ -26,6 +26,13 @@ Nucleo includes an arduino compatible headers which can be used to add MAX33040E
 
 This project is tied to the CubeMX configuration, so it is up to the user to provide compatible configuration using CubeMX (bitrate, interrupt activiation and etc). (In this example, the MX_CAN_Init function will be called by CO_Driver_STM32Fxxx.c)
 
+### [STM32G0C1VE-EV](https://www.st.com/en/evaluation-tools/stm32g0c1e-ev.html)
+The STM32G0C1E-EV Evaluation board is a high-end development platform for the STM32G0C1VET6 microcontroller. It has many features including two CAN FD controller and physical layer on board.
+You don't need any additional hardware to connect to existing CAN network.
+It also includes built-in programmer and virtual COM port for communication, hence evaluation is quick and easy.
+> CanOpen demo works at `FDCAN1` port. Use connector *CN12*.
+> FDCAN IP block is same for any STM32G0xx MCU family, hence migration to your custom board should be straight-forward.
+
 #### When using/porting NUCLEO examples do not forget to : 
 - Set the right baudrate for CAN (with TimeSeg1 set to 10 and TimeSeg2 set to 1) in the CubeMX GUI
 - Activate the RX and TX interrupt on the CAN peripheral
