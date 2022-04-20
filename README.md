@@ -11,7 +11,7 @@ You can directly open projects run prepared examples on the board.
 ## Supported boards and MCUs
  
 
-### STM32H735G-DK - [Link](https://www.st.com/en/evaluation-tools/stm32h735g-dk.html).
+### [STM32H735G-DK](https://www.st.com/en/evaluation-tools/stm32h735g-dk.html).
 It has many features of STM32H7xx series and includes 3 CAN transceivers on the board.
 You do not need any additional hardware to connect to existing CAN network.
 It also includes built-in programmer and virtual COM port for communication, hence evaluation is quick and easy.
@@ -32,6 +32,7 @@ This project is tied to the CubeMX configuration, so it is up to the user to pro
 - Configure a timer for a 1ms overflow interrupt (TIM17 used in these examples)
 - From `Prject Manager` tab in the STM32Cube and `Code Generator` section, choose Generate peripheral initialization as a pair of '.c/.h' files per peripheral to create `Tim.H` and `can.h` files
 - if copying `CANOpenNode` folder entirely, you should remove or filter `example` folder in that directory.
+- if pulling the main `CANOpenNode`, please set  `CO_CONFIG_STORAGE_ENABLE`  to `0x00` in `301\CO_config.h`, as storage is not yet impelemented in this port.
 
 ### Features
 
