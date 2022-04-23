@@ -28,8 +28,8 @@
 
 #include <stdio.h>
 
-#include "../CANOpen_STM32G0xx/CO_storageBlank.h"
-#include "../CANOpen_STM32G0xx/OD.h"
+#include "CO_storageBlank.h"
+#include "OD.h"
 #include "CANopen.h"
 
 #include "tim.h"
