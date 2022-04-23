@@ -233,6 +233,13 @@ int main_canopen (void){
                 reset = CO_process(CO, false, timeDifference_us, NULL);
                 LED_red = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
                 LED_green = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
+                // Turn on/off green pin accordingly
+                if (LED_green && !HAL_GPIO_ReadPin(LED_GREEN_GPIO_Port, LED_GREEN_Pin)) {
+                    HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_SET);
+                } else if (!LED_green && HAL_GPIO_ReadPin(LED_GREEN_GPIO_Port, LED_GREEN_Pin)) {
+                    HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
+                }
+                // Turn on/off red pin accordingly (TODO)
         	}
 
 //        	OD_set_u32(OD_find(OD, 0x6000), 0x00, counter, false);
