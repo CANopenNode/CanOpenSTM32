@@ -57,6 +57,9 @@
 CO_t *CO = NULL; /* CANopen object */
 uint8_t LED_red, LED_green;
 
+/* Function Prototypes */
+void CO_delay(uint32_t delay, CO_NMT_reset_cmd_t *reset);
+void CO_handle(uint32_t *time_old, CO_NMT_reset_cmd_t *reset);
 
 /* main ***********************************************************************/
 int main_canopen (void){
@@ -226,21 +229,9 @@ int main_canopen (void){
             /* get time difference since last function call */
         	time_current = HAL_GetTick();
 
-        	if((time_current - time_old) > 0){ // More than 1ms elapsed
-                /* CANopen process */
-                uint32_t timeDifference_us = (time_current - time_old) * 1000;
-                time_old = time_current;
-                reset = CO_process(CO, false, timeDifference_us, NULL);
-                LED_red = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
-                LED_green = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
-                // Turn on/off green pin accordingly
-                if (LED_green && !HAL_GPIO_ReadPin(LED_GREEN_GPIO_Port, LED_GREEN_Pin)) {
-                    HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_SET);
-                } else if (!LED_green && HAL_GPIO_ReadPin(LED_GREEN_GPIO_Port, LED_GREEN_Pin)) {
-                    HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
-                }
-                // Turn on/off red pin accordingly (TODO)
-        	}
+            if((time_current - time_old) > 0){ // More than 1ms elapsed
+                CO_handle(&time_old, &reset);
+            }
 
 //        	OD_set_u32(OD_find(OD, 0x6000), 0x00, counter, false);
 //        	counter++;
@@ -270,6 +261,41 @@ int main_canopen (void){
     return 0;
 }
 
+/* Handles status LEDs and NMT state in loop ********************************/
+// This is the code that must be constantly running when the device is operational
+// even during delays
+void CO_handle(uint32_t *time_old, CO_NMT_reset_cmd_t *reset) {
+    /* CANopen process */
+    uint32_t time_current = HAL_GetTick();
+    uint32_t timeDifference_us = (time_current - *time_old) * 1000;
+    *time_old = time_current;
+    *reset = CO_process(CO, false, timeDifference_us, NULL);
+    LED_red = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
+    LED_green = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
+    // Turn on/off green pin accordingly
+    if (LED_green && !HAL_GPIO_ReadPin(LED_GREEN_GPIO_Port, LED_GREEN_Pin)) {
+        HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_SET);
+    } else if (!LED_green && HAL_GPIO_ReadPin(LED_GREEN_GPIO_Port, LED_GREEN_Pin)) {
+        HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
+    }
+    // Turn on/off red pin accordingly (TODO)
+
+}
+
+/* Handles a non-blocking delay, calling CO_handle each ms ********************************/
+void CO_delay(uint32_t delay, CO_NMT_reset_cmd_t *reset) {
+    uint32_t start_time, curr_time, t_last_hand;
+    start_time = curr_time = t_last_hand = HAL_GetTick();
+
+    // Runs until reset or delay has reached
+    while(*reset == CO_RESET_NOT && (curr_time - start_time) <= delay) {
+        if((curr_time - t_last_hand) > 0){ // More than 1ms elapsed
+            CO_handle(&t_last_hand, reset);
+        }
+        curr_time = HAL_GetTick();
+
+    }
+}
 
 /* timer thread executes in constant intervals ********************************/
 void tmrTask_thread(void){
@@ -306,5 +332,4 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim == &htim17)
 		tmrTask_thread();
 }
-
 
