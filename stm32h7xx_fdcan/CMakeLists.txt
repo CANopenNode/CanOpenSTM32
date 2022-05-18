@@ -26,8 +26,8 @@ set(CPU_PARAMETERS
     # Other parameters
     # -mcpu, -mfloat, -mfloat-abi, ...
     -mcpu=cortex-m7
-	-mfpu=fpv5-d16
-	-mfloat-abi=hard
+    -mfpu=fpv5-d16
+    -mfloat-abi=hard
 )
 
 # Set linker script
@@ -37,103 +37,91 @@ set(EXECUTABLE                      ${CMAKE_PROJECT_NAME})
 #
 # Source files
 #
-set(linked_SRCS
+set(src_canopennode_SRCS 
     ${PROJ_PATH}/../CANopenNode/CANopen.c
-	${PROJ_PATH}/../CANopenNode/301/CO_Emergency.c
-	${PROJ_PATH}/../CANopenNode/304/CO_GFC.c
-	${PROJ_PATH}/../CANopenNode/301/CO_HBconsumer.c
-	${PROJ_PATH}/../CANopenNode/303/CO_LEDs.c
-	${PROJ_PATH}/../CANopenNode/305/CO_LSSmaster.c
-	${PROJ_PATH}/../CANopenNode/305/CO_LSSslave.c
-	${PROJ_PATH}/../CANopenNode/301/CO_NMT_Heartbeat.c
-	${PROJ_PATH}/../CANopenNode/301/CO_ODinterface.c
-	${PROJ_PATH}/../CANopenNode/301/CO_PDO.c
-	${PROJ_PATH}/../CANopenNode/301/CO_SDOclient.c
-	${PROJ_PATH}/../CANopenNode/301/CO_SDOserver.c
-	${PROJ_PATH}/../CANopenNode/304/CO_SRDO.c
-	${PROJ_PATH}/../CANopenNode/301/CO_SYNC.c
-	${PROJ_PATH}/../CANopenNode/301/CO_TIME.c
-	${PROJ_PATH}/../CANopenNode/301/CO_fifo.c
-	${PROJ_PATH}/../CANopenNode/309/CO_gateway_ascii.c
-	${PROJ_PATH}/../CANopenNode/storage/CO_storage.c
-	${PROJ_PATH}/../CANopenNode/extra/CO_trace.c
-	${PROJ_PATH}/../CANopenNode/301/crc16-ccitt.c
-	${PROJ_PATH}/../source/CO_driver_stm32h735g-dk.c
-	${PROJ_PATH}/../source/OD.c
-	${PROJ_PATH}/../source/comm_stm32h735g-dk.c
-	${PROJ_PATH}/../libs/lwmem/lwmem/src/lwmem/lwmem.c
-	${PROJ_PATH}/../libs/lwprintf/lwprintf/src/lwprintf/lwprintf.c
-	${PROJ_PATH}/../libs/lwrb/lwrb/src/lwrb/lwrb.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_cortex.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_dma.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_dma_ex.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_exti.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_fdcan.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_flash.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_flash_ex.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_gpio.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_hsem.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c_ex.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_mdma.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr_ex.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim_ex.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_dma.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_exti.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_gpio.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_rcc.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_usart.c
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_utils.c
-)
-set(source_folder_CANopenNode_SRCS 
-	)
+    ${PROJ_PATH}/../CANopenNode/301/CO_Emergency.c
+    ${PROJ_PATH}/../CANopenNode/304/CO_GFC.c
+    ${PROJ_PATH}/../CANopenNode/301/CO_HBconsumer.c
+    ${PROJ_PATH}/../CANopenNode/303/CO_LEDs.c
+    ${PROJ_PATH}/../CANopenNode/305/CO_LSSmaster.c
+    ${PROJ_PATH}/../CANopenNode/305/CO_LSSslave.c
+    ${PROJ_PATH}/../CANopenNode/301/CO_NMT_Heartbeat.c
+    ${PROJ_PATH}/../CANopenNode/301/CO_ODinterface.c
+    ${PROJ_PATH}/../CANopenNode/301/CO_PDO.c
+    ${PROJ_PATH}/../CANopenNode/301/CO_SDOclient.c
+    ${PROJ_PATH}/../CANopenNode/301/CO_SDOserver.c
+    ${PROJ_PATH}/../CANopenNode/304/CO_SRDO.c
+    ${PROJ_PATH}/../CANopenNode/301/CO_SYNC.c
+    ${PROJ_PATH}/../CANopenNode/301/CO_TIME.c
+    ${PROJ_PATH}/../CANopenNode/301/CO_fifo.c
+    ${PROJ_PATH}/../CANopenNode/309/CO_gateway_ascii.c
+    ${PROJ_PATH}/../CANopenNode/storage/CO_storage.c
+    ${PROJ_PATH}/../CANopenNode/extra/CO_trace.c
+    ${PROJ_PATH}/../CANopenNode/301/crc16-ccitt.c)
 
-set(source_folder_Src_SRCS 
-	${PROJ_PATH}/Src/main.c
-	${PROJ_PATH}/Src/stm32h7xx_it.c
-	${PROJ_PATH}/Src/syscalls.c
-	${PROJ_PATH}/Src/sysmem.c
-	${PROJ_PATH}/Src/system_stm32h7xx.c)
+set(src_src_SRCS 
+    ${PROJ_PATH}/../source/CO_driver_stm32h735g-dk.c
+    ${PROJ_PATH}/../source/OD.c
+    ${PROJ_PATH}/../source/comm_stm32h735g-dk.c
+    ${PROJ_PATH}/Src/main.c
+    ${PROJ_PATH}/Src/stm32h7xx_it.c
+    ${PROJ_PATH}/Src/syscalls.c
+    ${PROJ_PATH}/Src/sysmem.c
+    ${PROJ_PATH}/Src/system_stm32h7xx.c)
 
-set(source_folder_Startup_SRCS 
-	${PROJ_PATH}/Startup/startup_stm32h735igkx.s)
+set(src_lwmem_SRCS 
+    ${PROJ_PATH}/../libs/lwmem/lwmem/src/lwmem/lwmem.c)
 
-set(source_folder_lwmem_SRCS 
-	)
+set(src_lwprintf_SRCS 
+    ${PROJ_PATH}/../libs/lwprintf/lwprintf/src/lwprintf/lwprintf.c)
 
-set(source_folder_lwprintf_SRCS 
-	)
+set(src_lwrb_SRCS 
+    ${PROJ_PATH}/../libs/lwrb/lwrb/src/lwrb/lwrb.c)
 
-set(source_folder_lwrb_SRCS 
-	)
+set(src_stm32_hal_driver_SRCS 
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_cortex.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_dma.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_dma_ex.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_exti.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_fdcan.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_flash.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_flash_ex.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_gpio.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_hsem.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c_ex.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_mdma.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr_ex.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim_ex.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_dma.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_exti.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_gpio.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_rcc.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_usart.c
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_utils.c)
 
-set(source_folder_stm32_hal_driver_SRCS 
-	)
-
-# Source files in the same path as ".cproject/.project" but nowhere included in file descriptions
-set(all_project_dir_SRCS
-    
-)
+set(src_startup_SRCS 
+    ${PROJ_PATH}/Startup/startup_stm32h735igkx.s)
 
 #
 # Include directories
 #
 set(include_c_DIRS
     ${PROJ_PATH}/Inc
-	${PROJ_PATH}/../include
-	${PROJ_PATH}/../libs/lwrb/lwrb/src/include
-	${PROJ_PATH}/../libs/lwprintf/lwprintf/src/include
-	${PROJ_PATH}/../libs/lwmem/lwmem/src/include
-	${PROJ_PATH}/../CANopenNode
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Inc
-	${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Inc/Legacy
-	${PROJ_PATH}/../drivers/CMSIS/Device/ST/STM32H7xx/Include
-	${PROJ_PATH}/../drivers/CMSIS/Include
+    ${PROJ_PATH}/../include
+    ${PROJ_PATH}/../libs/lwrb/lwrb/src/include
+    ${PROJ_PATH}/../libs/lwprintf/lwprintf/src/include
+    ${PROJ_PATH}/../libs/lwmem/lwmem/src/include
+    ${PROJ_PATH}/../CANopenNode
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Inc
+    ${PROJ_PATH}/../drivers/STM32H7xx_HAL_Driver/Inc/Legacy
+    ${PROJ_PATH}/../drivers/CMSIS/Device/ST/STM32H7xx/Include
+    ${PROJ_PATH}/../drivers/CMSIS/Include
 )
 set(include_cxx_DIRS
     
@@ -147,13 +135,13 @@ set(include_asm_DIRS
 #
 set(symbols_c_SYMB
     "DEBUG"
-	"STM32H7xx"
-	"LWPRINTF_IGNORE_USER_OPTS"
-	"LWMEM_IGNORE_USER_OPTS"
-	"HSE_VALUE=25000000"
-	"USE_HAL_DRIVER"
-	"USE_FULL_LL_DRIVER"
-	"STM32H735xx"
+    "STM32H7xx"
+    "LWPRINTF_IGNORE_USER_OPTS"
+    "LWMEM_IGNORE_USER_OPTS"
+    "HSE_VALUE=25000000"
+    "USE_HAL_DRIVER"
+    "USE_FULL_LL_DRIVER"
+    "STM32H735xx"
 )
 set(symbols_cxx_SYMB
     
@@ -174,16 +162,14 @@ link_directories(${EXECUTABLE} ${link_DIRS})
 #
 # Executable files
 #
-add_executable(${EXECUTABLE}
-    ${linked_SRCS}
-    ${all_project_dir_SRCS} 
-	${source_folder_CANopenNode_SRCS}
-	${source_folder_Src_SRCS}
-	${source_folder_Startup_SRCS}
-	${source_folder_lwmem_SRCS}
-	${source_folder_lwprintf_SRCS}
-	${source_folder_lwrb_SRCS}
-	${source_folder_stm32_hal_driver_SRCS})
+add_executable(${EXECUTABLE} 
+    ${src_canopennode_SRCS}
+    ${src_src_SRCS}
+    ${src_lwmem_SRCS}
+    ${src_lwprintf_SRCS}
+    ${src_lwrb_SRCS}
+    ${src_stm32_hal_driver_SRCS}
+    ${src_startup_SRCS})
 
 #
 # Add linked libraries for linker
@@ -240,7 +226,9 @@ target_compile_options(${EXECUTABLE} PRIVATE
         #-Wsuggest-override
     >
     $<$<COMPILE_LANGUAGE:ASM>:
-
+        -x assembler-with-cpp
+        -MMD
+        -MP
     >
     $<$<CONFIG:Debug>:
         -Og -g3 -ggdb
@@ -252,9 +240,10 @@ target_compile_options(${EXECUTABLE} PRIVATE
 
 # Setup linker parameters
 target_link_options(${EXECUTABLE} PRIVATE
-    -T${MCU_LINKER_SCRIPT}${linker_script_SRC}
+    -T${linker_script_SRC}
     ${CPU_PARAMETERS}
     -Wl,-Map=${CMAKE_PROJECT_NAME}.map
+    -u _printf_float              # STDIO float formatting support (remove if not used)
     --specs=nosys.specs
     -Wl,--start-group
     -lc
@@ -275,7 +264,7 @@ add_custom_command(TARGET ${EXECUTABLE} POST_BUILD
     COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${EXECUTABLE}> ${EXECUTABLE}.hex
 )
 
-# Conver to bin file -> add conditional check?
+# Convert to bin file -> add conditional check?
 add_custom_command(TARGET ${EXECUTABLE} POST_BUILD
     COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${EXECUTABLE}> ${EXECUTABLE}.bin
 )
