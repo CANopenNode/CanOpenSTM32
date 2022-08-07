@@ -1,9 +1,10 @@
 #MicroXplorer Configuration settings - do not modify
 CAN.BS1=CAN_BS1_10TQ
-CAN.CalculateBaudRate=250000
-CAN.CalculateTimeBit=4000
-CAN.CalculateTimeQuantum=333.3333333333333
-CAN.IPParameters=CalculateTimeQuantum,CalculateBaudRate,BS1,CalculateTimeBit
+CAN.CalculateBaudRate=125000
+CAN.CalculateTimeBit=8000
+CAN.CalculateTimeQuantum=666.6666666666666
+CAN.IPParameters=CalculateTimeQuantum,CalculateBaudRate,BS1,CalculateTimeBit,Prescaler
+CAN.Prescaler=32
 File.Version=6
 KeepUserPlacement=false
 Mcu.CPN=STM32F072RBT6
@@ -128,7 +129,7 @@ ProjectManager.StackSize=0x400
 ProjectManager.TargetToolchain=STM32CubeIDE
 ProjectManager.ToolChainLocation=
 ProjectManager.UnderRoot=true
-ProjectManager.functionlistsort=1-SystemClock_Config-RCC-false-HAL-false,2-MX_GPIO_Init-GPIO-false-HAL-true,3-MX_USART2_UART_Init-USART2-false-HAL-true,4-MX_CAN_Init-CAN-false-HAL-true
+ProjectManager.functionlistsort=1-SystemClock_Config-RCC-false-HAL-false,2-MX_GPIO_Init-GPIO-false-HAL-true,3-MX_USART2_UART_Init-USART2-false-HAL-true,4-MX_CAN_Init-CAN-false-HAL-true,5-MX_TIM17_Init-TIM17-false-HAL-true
 RCC.AHBFreq_Value=48000000
 RCC.APB1Freq_Value=48000000
 RCC.APB1TimFreq_Value=48000000

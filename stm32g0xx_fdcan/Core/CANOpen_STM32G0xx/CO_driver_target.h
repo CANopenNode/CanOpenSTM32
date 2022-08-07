@@ -33,9 +33,20 @@
 #include <stdint.h>
 
 /* Include STM32H7 HAL driver */
-#include "stm32g0xx_hal.h"
+#include "main.h"
 
-#undef CO_CONFIG_STORAGE_ENABLE
+// Determining the CANOpen Driver
+
+#ifdef FDCAN1 || FDCAN2 || FDCAN3
+#define CO_STM32_FDCAN_Driver 1
+#elif CAN1 || CAN2 || CAN3
+#define CO_STM32_CAN_Driver 1
+#else
+#error This STM32 Do not support CAN or FDCAN
+#endif
+
+
+#undef CO_CONFIG_STORAGE_ENABLE // We don't need Storage option, implement based on your usecase
 
 #ifdef CO_DRIVER_CUSTOM
 #include "CO_driver_custom.h"

@@ -376,7 +376,7 @@ void CO_CANclearPendingSyncPDOs(CO_CANmodule_t *CANmodule) {
 void CO_CANmodule_process(CO_CANmodule_t *CANmodule) {
 	uint32_t err;
 
-	/* TODO: There might be some imporovement needed here */
+	err = ((CAN_HandleTypeDef*)CANmodule->CANptr)->Instance->ESR & (CAN_ESR_BOFF | CAN_ESR_EPVF | CAN_ESR_EWGF);
 
 	if (CANmodule->errOld != err) {
 		uint16_t status = CANmodule->CANerrorStatus;

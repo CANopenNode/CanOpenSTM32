@@ -230,8 +230,6 @@ int main_canopen (void){
                 uint32_t timeDifference_us = (time_current - time_old) * 1000;
                 time_old = time_current;
                 reset = CO_process(CO, false, timeDifference_us, NULL);
-                LED_red = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
-                LED_green = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
         	}
 
             /* Nonblocking application code may go here. */
