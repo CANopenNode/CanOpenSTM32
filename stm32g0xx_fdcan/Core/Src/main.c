@@ -29,7 +29,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "CO_app_STM32.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -101,13 +101,21 @@ int main(void)
   MX_USB_DRD_FS_PCD_Init();
   MX_TIM17_Init();
   /* USER CODE BEGIN 2 */
-  main_canopen();
+
+  CANopenNodeSTM32 CANOpenConfig;
+  CANOpenConfig.CANHandle = &hfdcan1;
+  CANOpenConfig.HWInitFunction = MX_FDCAN1_Init;
+  CANOpenConfig.timerHandle = &htim17;
+  CANOpenConfig.desiredNodeID = 21;
+  CANOpenConfig.baudrate = 125;
+  canopen_app_init(&CANOpenConfig);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  canopen_app_process();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

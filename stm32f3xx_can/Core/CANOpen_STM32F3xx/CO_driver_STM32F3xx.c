@@ -423,7 +423,7 @@ void CO_CANmodule_process(CO_CANmodule_t *CANmodule) {
  */
 static void prv_read_can_received_msg(CAN_HandleTypeDef *hcan,
 		uint32_t fifo, uint32_t fifo_isrs) {
-	static CAN_RxHeaderTypeDef rx_hdr;
+
 	CO_CANrxMsg_t rcvMsg;
 	CO_CANrx_t *buffer = NULL; /* receive message buffer from CO_CANmodule_t object. */
 	uint16_t index; /* index of received message */

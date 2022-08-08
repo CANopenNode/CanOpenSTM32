@@ -33,7 +33,12 @@
 		<link>
 			<name>CANopenNode</name>
 			<type>2</type>
-            <locationURI>PARENT-1-PROJECT_LOC/CANopenNode</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/CANopenNode</locationURI>
+		</link>
+		<link>
+			<name>CANopenNode_STM32</name>
+			<type>2</type>
+			<locationURI>PARENT-1-PROJECT_LOC/CANopenNode_STM32</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>
