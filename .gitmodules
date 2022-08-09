@@ -1,16 +1,13 @@
-[submodule "libs/lwrb"]
-	path = libs/lwrb
+[submodule "legacy/libs/lwmem"]
+	path = legacy/libs/lwmem
+	url = https://github.com/MaJerle/lwmem
+[submodule "legacy/libs/lwprintf"]
+	path = legacy/libs/lwprintf
+	url = https://github.com/MaJerle/lwprintf
+[submodule "legacy/libs/lwrb"]
+	path = legacy/libs/lwrb
 	url = https://github.com/MaJerle/lwrb
-	branch = master
 [submodule "CANopenNode"]
 	path = CANopenNode
 	url = https://github.com/CANopenNode/CANopenNode
-	branch = master
-[submodule "libs/lwprintf"]
-	path = libs/lwprintf
-	url = https://github.com/MaJerle/lwprintf
-	branch = master
-[submodule "libs/lwmem"]
-	path = libs/lwmem
-	url = https://github.com/MaJerle/lwmem
 	branch = master
