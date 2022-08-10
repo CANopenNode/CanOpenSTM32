@@ -108,13 +108,13 @@ int main(void)
    * baudrate: This is the baudrate you've set in your CubeMX Configuration
    *
    */
-  CANopenNodeSTM32 CANOpenConfig;
-  CANOpenConfig.CANHandle = &hcan;
-  CANOpenConfig.HWInitFunction = MX_CAN_Init;
-  CANOpenConfig.timerHandle = &htim17;
-  CANOpenConfig.desiredNodeID = 29;
-  CANOpenConfig.baudrate = 125;
-  canopen_app_init(&CANOpenConfig);
+  CANopenNodeSTM32 canOpenNodeSTM32;
+  canOpenNodeSTM32.CANHandle = &hcan;
+  canOpenNodeSTM32.HWInitFunction = MX_CAN_Init;
+  canOpenNodeSTM32.timerHandle = &htim17;
+  canOpenNodeSTM32.desiredNodeID = 29;
+  canOpenNodeSTM32.baudrate = 125;
+  canopen_app_init(&canOpenNodeSTM32);
   /* USER CODE END 2 */
 
   /* Infinite loop */

@@ -179,13 +179,13 @@ int main(void)
   MX_USB_OTG_HS_USB_Init();
   MX_TIM17_Init();
   /* USER CODE BEGIN 2 */
-  CANopenNodeSTM32 CANOpenConfig;
-  CANOpenConfig.CANHandle = &hfdcan1;
-  CANOpenConfig.HWInitFunction = MX_FDCAN1_Init;
-  CANOpenConfig.timerHandle = &htim17;
-  CANOpenConfig.desiredNodeID = 24;
-  CANOpenConfig.baudrate = 125;
-  canopen_app_init(&CANOpenConfig);
+  CANopenNodeSTM32 canOpenNodeSTM32;
+  canOpenNodeSTM32.CANHandle = &hfdcan1;
+  canOpenNodeSTM32.HWInitFunction = MX_FDCAN1_Init;
+  canOpenNodeSTM32.timerHandle = &htim17;
+  canOpenNodeSTM32.desiredNodeID = 24;
+  canOpenNodeSTM32.baudrate = 125;
+  canopen_app_init(&canOpenNodeSTM32);
   /* USER CODE END 2 */
 
   /* Infinite loop */

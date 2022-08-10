@@ -108,13 +108,13 @@ int main(void)
   MX_CAN1_Init();
   MX_TIM14_Init();
   /* USER CODE BEGIN 2 */
-  CANopenNodeSTM32 CANOpenConfig;
-  CANOpenConfig.CANHandle = &hcan1;
-  CANOpenConfig.HWInitFunction = MX_CAN1_Init;
-  CANOpenConfig.timerHandle = &htim14;
-  CANOpenConfig.desiredNodeID = 23;
-  CANOpenConfig.baudrate = 125;
-  canopen_app_init(&CANOpenConfig);
+  CANopenNodeSTM32 canOpenNodeSTM32;
+  canOpenNodeSTM32.CANHandle = &hcan1;
+  canOpenNodeSTM32.HWInitFunction = MX_CAN1_Init;
+  canOpenNodeSTM32.timerHandle = &htim14;
+  canOpenNodeSTM32.desiredNodeID = 23;
+  canOpenNodeSTM32.baudrate = 125;
+  canopen_app_init(&canOpenNodeSTM32);
   /* USER CODE END 2 */
 
   /* Infinite loop */
