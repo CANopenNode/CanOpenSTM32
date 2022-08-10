@@ -34,9 +34,17 @@
 
 CANopenNodeSTM32 *canopenNodeSTM32;
 
-
+/* Printf function of CanOpen app */
 #define log_printf(macropar_message, ...) \
         printf(macropar_message, ##__VA_ARGS__)
+
+/* Timer interrupt function executes every 1 ms */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+	if (htim == canopenNodeSTM32->timerHandle)
+		canopen_app_interrupt();
+}
+
+
 
 /* default values for CO_CANopenInit() */
 #define NMT_CONTROL \
@@ -59,8 +67,10 @@ uint8_t LED_red, LED_green;
 uint32_t time_old, time_current;
 CO_ReturnError_t err;
 
+/* This function will basically setup the CANopen node */
 int canopen_app_init(CANopenNodeSTM32 *canopenSTM32) {
 
+	// Keep a copy global reference of canOpenSTM32 Object
 	canopenNodeSTM32 = canopenSTM32;
 
 #if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
@@ -237,13 +247,13 @@ void canopen_app_process() {
 
 }
 
-/* timer thread executes in constant intervals ********************************/
-void tmrTask_thread(void) {
+/* Thread function executes in constant intervals, this function can be called from FreeRTOS tasks or Timers ********/
+void canopen_app_interrupt(void) {
 	CO_LOCK_OD(CO->CANmodule);
 	if (!CO->nodeIdUnconfigured && CO->CANmodule->CANnormal) {
 		bool_t syncWas = false;
 		/* get time difference since last function call */
-		uint32_t timeDifference_us = 1000;
+		uint32_t timeDifference_us = 1000; // 1ms second
 
 #if (CO_CONFIG_SYNC) & CO_CONFIG_SYNC_ENABLE
 		syncWas = CO_process_SYNC(CO, timeDifference_us, NULL);
@@ -259,9 +269,5 @@ void tmrTask_thread(void) {
 	}
 	CO_UNLOCK_OD(CO->CANmodule);
 }
-/* Timer interrupt function executes every 1 ms ********************/
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-	if (htim == canopenNodeSTM32->timerHandle)
-		tmrTask_thread();
-}
+
 

@@ -2,8 +2,10 @@
  * Device and application specific definitions for CANopenNode.
  *
  * @file        CO_driver_target.h
- * @author      Janez Paternoster
- * @copyright   2021 Janez Paternoster
+ * @author      Hamed Jafarzadeh 	2022
+ * 				Tilen Marjerle		2021
+ * 				Janez Paternoster	2020
+ * @copyright   2004 - 2020 Janez Paternoster
  *
  * This file is part of CANopenNode, an opensource CANopen Stack.
  * Project home page is <https://github.com/CANopenNode/CANopenNode>.
@@ -44,7 +46,7 @@
 #endif
 
 
-#undef CO_CONFIG_STORAGE_ENABLE // We don't need Storage option, implement based on your usecase
+#undef CO_CONFIG_STORAGE_ENABLE // We don't need Storage option, implement based on your use case and remove this line from here
 
 #ifdef CO_DRIVER_CUSTOM
 #include "CO_driver_custom.h"
@@ -175,11 +177,6 @@ typedef struct {
  */
 #define CO_CONFIG_GLOBAL_FLAG_TIMERNEXT         CO_CONFIG_FLAG_TIMERNEXT
 
-/* External FDCAN handle object */
-#if defined(STM32H7xx)
-extern FDCAN_HandleTypeDef hfdcan1;         /* Global FDCAN instance for HAL */
-#endif /* defined(STM32H7xx) */
-
 /*
  * Operating system use case.
  *
@@ -188,6 +185,7 @@ extern FDCAN_HandleTypeDef hfdcan1;         /* Global FDCAN instance for HAL */
 #if defined(USE_OS)
 #include "cmsis_os2.h"
 
+#error "OS is not fully supported in this release yet."
 /* Functions to lock access to shared services with mutex */
 uint8_t co_drv_create_os_objects(void);
 uint8_t co_drv_mutex_lock(void);
