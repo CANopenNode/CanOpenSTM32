@@ -467,7 +467,7 @@ static uint16_t rxErrors = 0, txErrors = 0, overflow = 0;
 
 void
 CO_CANmodule_process(CO_CANmodule_t *CANmodule) {
-    uint32_t err;
+    uint32_t err = 0;
 
     // CANOpen just care about Bus_off, Warning, Passive and Overflow
     // I didn't find overflow error register in STM32, if you find it please let me know
@@ -505,6 +505,36 @@ CO_CANmodule_process(CO_CANmodule_t *CANmodule) {
     }
 #else
 
+    err = ((CAN_HandleTypeDef*)((CANopenNodeSTM32 *)CANmodule->CANptr)->CANHandle)->Instance->ESR & (CAN_ESR_BOFF | CAN_ESR_EPVF | CAN_ESR_EWGF);
+
+    uint32_t esrVal= ((CAN_HandleTypeDef*)((CANopenNodeSTM32 *)CANmodule->CANptr)->CANHandle)->Instance->ESR;
+    if (CANmodule->errOld != err) {
+
+          uint16_t status = CANmodule->CANerrorStatus;
+
+          CANmodule->errOld = err;
+
+          if(err & CAN_ESR_BOFF){
+          	status |= CO_CAN_ERRTX_BUS_OFF;
+          } else {
+              /* recalculate CANerrorStatus, first clear some flags */
+              status &= 0xFFFF ^ (CO_CAN_ERRTX_BUS_OFF |
+                                  CO_CAN_ERRRX_WARNING | CO_CAN_ERRRX_PASSIVE |
+                                  CO_CAN_ERRTX_WARNING | CO_CAN_ERRTX_PASSIVE);
+
+
+              if(err & CAN_ESR_EWGF){
+              	 status |= CO_CAN_ERRRX_WARNING | CO_CAN_ERRTX_WARNING;
+              }
+
+              if(err & CAN_ESR_EPVF){
+              	 status |= CO_CAN_ERRRX_PASSIVE | CO_CAN_ERRTX_PASSIVE;
+              }
+
+          }
+
+          CANmodule->CANerrorStatus = status;
+      }
 
 
 #endif
