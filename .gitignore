@@ -23,6 +23,7 @@
 *.__i
 *.i
 *.txt
+*.launch
 !docs/*.txt
 RTE/
 
