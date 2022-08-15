@@ -115,6 +115,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  //Reflect CANopenStatus on LEDs
+	  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, !canOpenNodeSTM32.outStatusLEDGreen);
+	  HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, !canOpenNodeSTM32.outStatusLEDRed);
+
 	  canopen_app_process();
     /* USER CODE END WHILE */
 

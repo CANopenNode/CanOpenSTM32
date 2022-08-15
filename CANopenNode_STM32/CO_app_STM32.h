@@ -39,6 +39,13 @@ typedef struct {
 #endif
 
 	void (*HWInitFunction)(); /* Pass in the function that initialize the CAN peripheral, usually MX_CAN_Init */
+
+	uint8_t outStatusLEDGreen; // This will be updated by the stack - Use them for the LED management
+	uint8_t outStatusLEDRed;// This will be updated by the stack - Use them for the LED management
+	CO_t *canOpenStack;
+
+
+
 } CANopenNodeSTM32;
 
 /* This function will initialize the required CANOpen Stack objects, allocate the memory and prepare stack for communication reset*/
@@ -47,7 +54,6 @@ int canopen_app_init(CANopenNodeSTM32 *canopenSTM32);
 int canopen_app_resetCommunication();
 /* This function will check the input buffers and any outstanding tasks that are not time critical, this function should be called regurarly from your code (i.e from your while(1))*/
 void canopen_app_process();
-
 /* Thread function executes in constant intervals, this function can be called from FreeRTOS tasks or Timers ********/
 void canopen_app_interrupt(void);
 

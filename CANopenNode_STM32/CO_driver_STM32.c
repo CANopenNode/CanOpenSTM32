@@ -150,7 +150,14 @@ CO_CANmodule_init(
     }
 #else
 	CAN_FilterTypeDef FilterConfig;
+#if defined(CAN)
 	FilterConfig.FilterBank = 0;
+#else
+	if(((CAN_HandleTypeDef*)((CANopenNodeSTM32 *)CANmodule->CANptr)->CANHandle)->Instance == CAN1)
+	FilterConfig.FilterBank = 0;
+	else
+	FilterConfig.FilterBank = 14;
+#endif
 	FilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
 	FilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
 	FilterConfig.FilterIdHigh = 0x0;
@@ -158,8 +165,10 @@ CO_CANmodule_init(
 	FilterConfig.FilterMaskIdHigh = 0x0;
 	FilterConfig.FilterMaskIdLow = 0x0;
 	FilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+
 	FilterConfig.FilterActivation = ENABLE;
 	FilterConfig.SlaveStartFilterBank = 14;
+
 
 	if (HAL_CAN_ConfigFilter(((CANopenNodeSTM32 *)CANptr)->CANHandle, &FilterConfig)
 					!= HAL_OK) {

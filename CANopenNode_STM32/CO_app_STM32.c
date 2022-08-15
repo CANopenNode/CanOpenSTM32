@@ -60,7 +60,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 /* Global variables and objects */
 CO_t *CO = NULL; /* CANopen object */
-uint8_t LED_red, LED_green;
 
 
 // Global variables
@@ -68,10 +67,10 @@ uint32_t time_old, time_current;
 CO_ReturnError_t err;
 
 /* This function will basically setup the CANopen node */
-int canopen_app_init(CANopenNodeSTM32 *canopenSTM32) {
+int canopen_app_init(CANopenNodeSTM32 *_canopenNodeSTM32) {
 
 	// Keep a copy global reference of canOpenSTM32 Object
-	canopenNodeSTM32 = canopenSTM32;
+	canopenNodeSTM32 = _canopenNodeSTM32;
 
 #if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
     CO_storage_t storage;
@@ -107,6 +106,8 @@ int canopen_app_init(CANopenNodeSTM32 *canopenSTM32) {
 	} else {
 		log_printf("Allocated %u bytes for CANopen objects\n", heapMemoryUsed);
 	}
+
+	canopenNodeSTM32->canOpenStack = CO;
 
 #if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
     err = CO_storageBlank_init(&storage,
@@ -228,8 +229,8 @@ void canopen_app_process() {
 		uint32_t timeDifference_us = (time_current - time_old) * 1000;
 		time_old = time_current;
 		reset_status = CO_process(CO, false, timeDifference_us, NULL);
-		LED_red = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
-		LED_green = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
+		canopenNodeSTM32->outStatusLEDRed = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
+		canopenNodeSTM32->outStatusLEDGreen = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
 
 		if (reset_status == CO_RESET_COMM) {
 			/* delete objects from memory */
