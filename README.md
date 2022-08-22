@@ -8,7 +8,6 @@ Examples are developed in [STM32CubeIDE](https://www.st.com/en/development-tools
 official ST development studio for any STM32 microcontroller.
 You can directly open projects in the STM32CubeIDE and run examples on the relevant boards.
 
-
 ## Repository directories
 
 - `.\CANopenNode` : Includes the stack implemenation, for most of usecases you don't need to touch these files as they are constant between all the variations and ports (i.e. Linux, PIC, STM32 and etc.)
@@ -55,6 +54,15 @@ This project is tied to the CubeMX configuration, so it is up to the user to pro
 ### [STM32F4DISCOVERY](https://www.st.com/en/evaluation-tools/stm32f4discovery.html) + Any CAN Bus Physical Layer Module
 
 Have a look at STM32CubeMX configuration file for pin mapping.
+
+
+## Video Tutorial
+
+To get a good grasp of CANOpenNode Stack and CANOpenNodeSTM32 stack, you can refer to this video, which explains from basics to implementation and porting of the CANOpenNode stack.
+
+[![CANOpen Node STM32 From basics to coding](https://img.youtube.com/vi/R-r5qIOTjOo/0.jpg)](https://www.youtube.com/watch?v=R-r5qIOTjOo)
+
+>[00:00](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=0s) Introduction and Overview [1:13](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=73s) Why CAN ? [4:51](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=291s) CAN Bus [8:55](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=535s) Why CANOpen ? [13:27](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=807s) CANOpen architecture [20:00](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=1200s) Object dictionary [21:38](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=1298s) Important CANOpen concepts [23:29](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=1409s) PDO [27:25](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=1645s) SDO [32:23](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=1943s) NMT [33:25](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=2005s) CANOpenNode Open-Source Stack [39:26](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=2366s) STM32 Practical implementation [40:29](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=2429s) CANOpen Tutorial code preparation [43:09](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=2589s) Importing examples to STM32CubeIDE and programming them [47:04](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=2824s) Examples explanation [57:00](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=3420s) Porting to custom STM32 board [1:18:20](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=4700s) EDS Editor (Object dictionary editor) [1:25:54](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=5154s) Creating a TPDO [1:39:55](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=5995s) Accessing OD Variables [1:54:08](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=6848s) Creating an RPDO [2:05:50](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=7550s) Using the SDOs [2:52:52](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=10372s) Node guarding [3:04:38](https://www.youtube.com/watch?v=R-r5qIOTjOo&t=11078s) Transmitting PDOs manually
 
 
 
