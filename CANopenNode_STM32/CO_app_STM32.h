@@ -20,6 +20,11 @@
 
  */
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct {
 	uint8_t desiredNodeID; /*This is the Node ID that you ask the CANOpen stack to assign to your device, although it might not always
 	 * be the final NodeID, after calling canopen_app_init() you should check ActiveNodeID of CANopenNodeSTM32 structure for assigned Node ID.
@@ -56,5 +61,9 @@ int canopen_app_resetCommunication();
 void canopen_app_process();
 /* Thread function executes in constant intervals, this function can be called from FreeRTOS tasks or Timers ********/
 void canopen_app_interrupt(void);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* CANOPENSTM32_CO_APP_STM32_H_ */
