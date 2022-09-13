@@ -493,6 +493,9 @@ CO_CANmodule_process(CO_CANmodule_t *CANmodule) {
 
         if(err & FDCAN_PSR_BO){
         	status |= CO_CAN_ERRTX_BUS_OFF;
+        	// Ask for recovery from the controller
+        	((FDCAN_HandleTypeDef*)((CANopenNodeSTM32 *)CANmodule->CANptr)->CANHandle)->Instance->CCCR = ((FDCAN_HandleTypeDef*)((CANopenNodeSTM32 *)CANmodule->CANptr)->CANHandle)->Instance->CCCR & (~FDCAN_CCCR_INIT);
+
         } else {
             /* recalculate CANerrorStatus, first clear some flags */
             status &= 0xFFFF ^ (CO_CAN_ERRTX_BUS_OFF |
@@ -525,6 +528,10 @@ CO_CANmodule_process(CO_CANmodule_t *CANmodule) {
 
           if(err & CAN_ESR_BOFF){
           	status |= CO_CAN_ERRTX_BUS_OFF;
+          	// TODO : Ask for recovery from the controller - For now
+          	//  CANx->MCR |= CAN_MCR_ABOM;
+          	// In initialization can be used
+
           } else {
               /* recalculate CANerrorStatus, first clear some flags */
               status &= 0xFFFF ^ (CO_CAN_ERRTX_BUS_OFF |
