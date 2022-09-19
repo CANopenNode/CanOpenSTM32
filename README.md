@@ -10,6 +10,10 @@ You can directly open projects run prepared examples on the board.
 
 ## Supported boards and MCUs
  
+### [STM32G431RB](https://www.st.com/en/evaluation-tools/stm32h735g-dk.html](https://www.st.com/en/evaluation-tools/nucleo-g431rb.html).
+Ported over to the STM32G4
+
+> CanOpen demo works at `FDCAN1` port.
 
 ### [STM32H735G-DK](https://www.st.com/en/evaluation-tools/stm32h735g-dk.html).
 It has many features of STM32H7xx series and includes 3 CAN transceivers on the board.
