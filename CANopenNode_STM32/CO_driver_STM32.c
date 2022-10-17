@@ -38,17 +38,6 @@ static CO_CANmodule_t* CANModule_local = NULL; /* Local instance of global CAN m
 #define CANID_MASK 0x07FF /*!< CAN standard ID mask */
 #define FLAG_RTR   0x8000 /*!< RTR flag, part of identifier */
 
-#if defined(USE_OS)
-/* Mutex for atomic access */
-static osMutexId_t co_mutex;
-
-/* Semaphore for main app thread synchronization */
-osSemaphoreId_t co_drv_app_thread_sync_semaphore;
-
-/* Semaphore for periodic thread synchronization */
-osSemaphoreId_t co_drv_periodic_thread_sync_semaphore;
-#endif /* defined(USE_OS) */
-
 /******************************************************************************/
 void
 CO_CANsetConfigurationMode(void* CANptr) {
@@ -188,55 +177,6 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
 
     return CO_ERROR_NO;
 }
-
-#if defined(USE_OS)
-
-/**
- * \brief           Create all OS objects for CANopen
- * \return          `1` on success, `0` otherwise
- */
-uint8_t
-co_drv_create_os_objects(void) {
-    /* Create new mutex for OS context */
-    if (co_mutex == NULL) {
-        const osMutexAttr_t attr = {.attr_bits = osMutexRecursive, .name = "co"};
-        co_mutex = osMutexNew(&attr);
-    }
-
-    /* Semaphore for main app thread synchronization */
-    if (co_drv_app_thread_sync_semaphore == NULL) {
-        const osSemaphoreAttr_t attr = {.name = "co_app_thread_sync"};
-        co_drv_app_thread_sync_semaphore = osSemaphoreNew(1, 1, &attr);
-    }
-
-    /* Semaphore for periodic thread synchronization */
-    if (co_drv_periodic_thread_sync_semaphore == NULL) {
-        const osSemaphoreAttr_t attr = {.name = "co_periodic_thread_sync"};
-        co_drv_periodic_thread_sync_semaphore = osSemaphoreNew(1, 1, &attr);
-    }
-
-    return 1;
-}
-
-/**
- * \brief           Lock mutex or wait to be available
- * \return          `1` on success, `0` otherwise
- */
-uint8_t
-co_drv_mutex_lock(void) {
-    return osMutexAcquire(co_mutex, osWaitForever) == osOK;
-}
-
-/**
- * \brief           Release previously locked mutex
- * \return          `1` on success, `0` otherwise
- */
-uint8_t
-co_drv_mutex_unlock(void) {
-    return osMutexRelease(co_mutex) == osOK;
-}
-
-#endif /* defined(USE_OS) */
 
 /******************************************************************************/
 void
@@ -479,10 +419,7 @@ CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
 
         if (err & FDCAN_PSR_BO) {
             status |= CO_CAN_ERRTX_BUS_OFF;
-            // Ask for recovery from the controller
-            ((FDCAN_HandleTypeDef*)((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle)->Instance->CCCR =
-                ((FDCAN_HandleTypeDef*)((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle)->Instance->CCCR
-                & (~FDCAN_CCCR_INIT);
+            // In this driver we expect that the controller is automatically handling the protocol exceptions.
 
         } else {
             /* recalculate CANerrorStatus, first clear some flags */
@@ -506,7 +443,7 @@ CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
     err = ((CAN_HandleTypeDef*)((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle)->Instance->ESR
           & (CAN_ESR_BOFF | CAN_ESR_EPVF | CAN_ESR_EWGF);
 
-    uint32_t esrVal = ((CAN_HandleTypeDef*)((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle)->Instance->ESR;
+    //    uint32_t esrVal = ((CAN_HandleTypeDef*)((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle)->Instance->ESR; Debug purpose
     if (CANmodule->errOld != err) {
 
         uint16_t status = CANmodule->CANerrorStatus;
@@ -515,9 +452,7 @@ CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
 
         if (err & CAN_ESR_BOFF) {
             status |= CO_CAN_ERRTX_BUS_OFF;
-            // TODO : Ask for recovery from the controller - For now
-            //  CANx->MCR |= CAN_MCR_ABOM;
-            // In initialization can be used
+            // In this driver, we assume that auto bus recovery is activated ! so this error will eventually handled automatically.
 
         } else {
             /* recalculate CANerrorStatus, first clear some flags */

@@ -124,7 +124,13 @@ static void MX_TIM17_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+/* Timer interrupt function executes every 1 ms */
+void
+HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim) {
+    if (htim == canopenNodeSTM32->timerHandle) {
+        canopen_app_interrupt();
+    }
+}
 /* USER CODE END 0 */
 
 /**
@@ -592,7 +598,7 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
   hfdcan1.Init.AutoRetransmission = ENABLE;
   hfdcan1.Init.TransmitPause = DISABLE;
-  hfdcan1.Init.ProtocolException = DISABLE;
+  hfdcan1.Init.ProtocolException = ENABLE;
   hfdcan1.Init.NominalPrescaler = 55;
   hfdcan1.Init.NominalSyncJumpWidth = 1;
   hfdcan1.Init.NominalTimeSeg1 = 13;
@@ -643,9 +649,9 @@ static void MX_FDCAN2_Init(void)
   hfdcan2.Instance = FDCAN2;
   hfdcan2.Init.FrameFormat = FDCAN_FRAME_CLASSIC;
   hfdcan2.Init.Mode = FDCAN_MODE_NORMAL;
-  hfdcan2.Init.AutoRetransmission = DISABLE;
+  hfdcan2.Init.AutoRetransmission = ENABLE;
   hfdcan2.Init.TransmitPause = DISABLE;
-  hfdcan2.Init.ProtocolException = DISABLE;
+  hfdcan2.Init.ProtocolException = ENABLE;
   hfdcan2.Init.NominalPrescaler = 16;
   hfdcan2.Init.NominalSyncJumpWidth = 1;
   hfdcan2.Init.NominalTimeSeg1 = 2;

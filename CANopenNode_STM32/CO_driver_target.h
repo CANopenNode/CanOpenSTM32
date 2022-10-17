@@ -123,6 +123,7 @@ typedef struct {
     uint32_t primask_send; /* Primask register for interrupts for send operation */
     uint32_t primask_emcy; /* Primask register for interrupts for emergency operation */
     uint32_t primask_od;   /* Primask register for interrupts for send operation */
+
 } CO_CANmodule_t;
 
 /* Data storage object for one entry */
@@ -136,6 +137,7 @@ typedef struct {
 } CO_storage_entry_t;
 
 /* (un)lock critical section in CO_CANsend() */
+// Why disabling the whole Interrupt
 #define CO_LOCK_CAN_SEND(CAN_MODULE)                                                                                   \
     do {                                                                                                               \
         (CAN_MODULE)->primask_send = __get_PRIMASK();                                                                  \
@@ -173,63 +175,6 @@ typedef struct {
         rxNew = NULL;                                                                                                  \
     } while (0)
 
-/*
- * Use custom library for allocation of core CanOpenNode objects
- *
- * LwMEM is optimized for embedded systems
- * and supports operating systems.
- *
- * When OS feature is enabled, LWMEM_CFG_OS is defined in compiler settings.
- */
-//#include "lwmem/lwmem.h"
-#if defined(CO_USE_GLOBALS)
-#undef CO_USE_GLOBALS
-#endif
-//#define CO_alloc(num, size)             lwmem_calloc((num), (size))
-//#define CO_free(ptr)                    lwmem_free((ptr))
-
-/*
- * Enable TIMERNEXT feature
- *
- * This features allows CANopen application threads,
- * to sleep for known time interval before next processing should occur
- */
-#define CO_CONFIG_GLOBAL_FLAG_TIMERNEXT CO_CONFIG_FLAG_TIMERNEXT
-
-/*
- * Operating system use case.
- *
- * When OS feature is enabled, USE_OS option is defined in compiler settings.
- */
-#if defined(USE_OS)
-#include "cmsis_os2.h"
-
-#error "OS is not fully supported in this release yet."
-/* Functions to lock access to shared services with mutex */
-uint8_t co_drv_create_os_objects(void);
-uint8_t co_drv_mutex_lock(void);
-uint8_t co_drv_mutex_unlock(void);
-
-/* Semaphore for main app thread synchronization */
-extern osSemaphoreId_t co_drv_app_thread_sync_semaphore;
-
-/* Semaphore for periodic thread synchronization */
-extern osSemaphoreId_t co_drv_periodic_thread_sync_semaphore;
-
-/* Wakeup specific threads */
-#define CO_WAKEUP_APP_THREAD()                  osSemaphoreRelease(co_drv_app_thread_sync_semaphore)
-#define CO_WAKEUP_PERIODIC_THREAD()             osSemaphoreRelease(co_drv_periodic_thread_sync_semaphore)
-#define CO_WAIT_SYNC_APP_THREAD(max_time_in_ms) osSemaphoreAcquire(co_drv_app_thread_sync_semaphore, (max_time_in_ms))
-#define CO_WAIT_SYNC_PERIODIC_THREAD(max_time_in_ms)                                                                   \
-    osSemaphoreAcquire(co_drv_periodic_thread_sync_semaphore, (max_time_in_ms))
-
-#else /* defined(USE_OS) */
-
-/* Empty definitions for non-OS implementation */
-#define CO_WAKEUP_APP_THREAD()
-#define CO_WAKEUP_PERIODIC_THREAD()
-
-#endif /* !defined(USE_OS) */
 
 #ifdef __cplusplus
 }

@@ -64,7 +64,13 @@ static void MX_CAN2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+/* Timer interrupt function executes every 1 ms */
+void
+HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim) {
+    if (htim == canopenNodeSTM32->timerHandle) {
+        canopen_app_interrupt();
+    }
+}
 /* USER CODE END 0 */
 
 /**
@@ -190,7 +196,7 @@ static void MX_CAN2_Init(void)
   hcan2.Init.TimeSeg1 = CAN_BS1_13TQ;
   hcan2.Init.TimeSeg2 = CAN_BS2_2TQ;
   hcan2.Init.TimeTriggeredMode = DISABLE;
-  hcan2.Init.AutoBusOff = DISABLE;
+  hcan2.Init.AutoBusOff = ENABLE;
   hcan2.Init.AutoWakeUp = DISABLE;
   hcan2.Init.AutoRetransmission = DISABLE;
   hcan2.Init.ReceiveFifoLocked = ENABLE;

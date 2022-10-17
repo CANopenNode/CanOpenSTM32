@@ -81,8 +81,8 @@ void MX_FDCAN2_Init(void)
   hfdcan2.Init.FrameFormat = FDCAN_FRAME_CLASSIC;
   hfdcan2.Init.Mode = FDCAN_MODE_NORMAL;
   hfdcan2.Init.AutoRetransmission = DISABLE;
-  hfdcan2.Init.TransmitPause = DISABLE;
-  hfdcan2.Init.ProtocolException = DISABLE;
+  hfdcan2.Init.TransmitPause = ENABLE;
+  hfdcan2.Init.ProtocolException = ENABLE;
   hfdcan2.Init.NominalPrescaler = 16;
   hfdcan2.Init.NominalSyncJumpWidth = 1;
   hfdcan2.Init.NominalTimeSeg1 = 2;

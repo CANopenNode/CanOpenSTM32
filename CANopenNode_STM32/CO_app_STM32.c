@@ -32,18 +32,11 @@
 #include "CO_storageBlank.h"
 #include "OD.h"
 
-CANopenNodeSTM32* canopenNodeSTM32;
+CANopenNodeSTM32*
+    canopenNodeSTM32; // It will be set by canopen_app_init and will be used across app to get access to CANOpen objects
 
 /* Printf function of CanOpen app */
 #define log_printf(macropar_message, ...) printf(macropar_message, ##__VA_ARGS__)
-
-/* Timer interrupt function executes every 1 ms */
-void
-HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim) {
-    if (htim == canopenNodeSTM32->timerHandle) {
-        canopen_app_interrupt();
-    }
-}
 
 /* default values for CO_CANopenInit() */
 #define NMT_CONTROL                                                                                                    \
@@ -211,7 +204,7 @@ canopen_app_process() {
     /* get time difference since last function call */
     time_current = HAL_GetTick();
 
-    if ((time_current - time_old) > 0) { // More than 1ms elapsed
+    if ((time_current - time_old) > 0) { // Make sure more than 1ms elapsed
         /* CANopen process */
         CO_NMT_reset_cmd_t reset_status;
         uint32_t timeDifference_us = (time_current - time_old) * 1000;

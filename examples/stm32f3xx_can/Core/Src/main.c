@@ -57,6 +57,13 @@ int mainCAN (void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+/* Timer interrupt function executes every 1 ms */
+void
+HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim) {
+    if (htim == canopenNodeSTM32->timerHandle) {
+        canopen_app_interrupt();
+    }
+}
 int __io_putchar(int ch) {
 	while ((USART3->ISR & USART_ISR_TXE) == 0x00); // Wait until TXE is zero
 	USART3->TDR = ch;

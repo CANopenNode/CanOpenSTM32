@@ -28,7 +28,7 @@ It also includes built-in programmer and virtual COM port for communication, hen
 > FDCAN IP block is same for any STM32H7xx MCU family, hence migration to your custom board should be straight-forward.
 
 * Runs out of the box on STM32H735G-DK board
-* Bare metal, and limited FreeRTOS operating system examples
+* Bare metal, and FreeRTOS operating system examples
 * `FDCAN1` (*CN18*) hardware is used for communication at 125kHz
 * CANopen LED control is well integrated
 * Debug messages are available through VCP COM port at `115200` bauds
@@ -68,7 +68,7 @@ To get a good grasp of CANOpenNode Stack and CANOpenNodeSTM32 stack, you can ref
 
 ## Porting to other STM32 microcontrollers checklist :
 - Create a new project in STM32CubeMXIDE
-- Configure CAN/FDCAN to your desired bitrate and map it to relevant tx/rx pins
+- Configure CAN/FDCAN to your desired bitrate and map it to relevant tx/rx pins - Make sure yo activate Auto Bus recovery (bxCAN) / protocol exception handling (FDCAN)
 - Activate the RX and TX interrupt on the CAN peripheral
 - Enable a timer for a 1ms overflow interrupt and activate interrupt for that timer
 - Copy or clone `CANopenNode` and `CANopenNodeSTM32` into your project directory 
@@ -82,6 +82,30 @@ To get a good grasp of CANOpenNode Stack and CANOpenNodeSTM32 stack, you can ref
     #include "CO_app_STM32.h"
     /* USER CODE END Includes */
   ```
+  - Make sure that you have the `HAL_TIM_PeriodElapsedCallback` function implmented with a call to `canopen_app_interrupt`.
+
+```c
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM1) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+  // Handle CANOpen app interrupts
+  if (htim == canopenNodeSTM32->timerHandle) {
+      canopen_app_interrupt();
+  }
+  /* USER CODE END Callback 1 */
+}
+
+```
+
+- Now based on your application, you'll take one of the following approaches :
+
+  ### In Baremetal application
 - In your main.c, add following codes to your USER CODE BEGIN 2
   ```c
     /* USER CODE BEGIN 2 */
@@ -105,8 +129,42 @@ To get a good grasp of CANOpenNode Stack and CANOpenNodeSTM32 stack, you can ref
 
   ```
 
+  ### In FreeRTOS Applications
+- You need to create a task for CANOpen, we call it `canopen_task` with a high priority and in that task use the following code : 
+
+```c
+
+void canopen_task(void *argument)
+{
+  /* USER CODE BEGIN canopen_task */
+  CANopenNodeSTM32 canOpenNodeSTM32;
+  canOpenNodeSTM32.CANHandle = &hfdcan1;
+  canOpenNodeSTM32.HWInitFunction = MX_FDCAN1_Init;
+  canOpenNodeSTM32.timerHandle = &htim17;
+  canOpenNodeSTM32.desiredNodeID = 21;
+  canOpenNodeSTM32.baudrate = 125;
+  canopen_app_init(&canOpenNodeSTM32);
+  /* Infinite loop */
+  for(;;)
+  {
+	  //Reflect CANopenStatus on LEDs
+    HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, !canOpenNodeSTM32.outStatusLEDGreen);
+    HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, !canOpenNodeSTM32.outStatusLEDRed);
+    canopen_app_process();
+    // Sleep for 1ms, you can decrease it if required, in the canopen_app_process we will double check to make sure 1ms passed
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+  /* USER CODE END canopen_task */
+}
+
+```
+> In RTOS applications, be very careful when accessing OD variables, CAN Send and EMCY variable. You should lock the these critical sections to make sure prevent race conditions. Have a look at `CO_LOCK_CAN_SEND`, `CO_LOCK_OD` and `CO_LOCK_EMCY`.
+
 - Run your project on the target board, you should be able to see bootup message on startup
 
+### Known limitations : 
+
+- We have never tested the multi CANOpen on a single STM32 device, but the the original CANOpenNode has the capability to use multi modules, which you can develop yourself.
 
 ### Clone or update
 

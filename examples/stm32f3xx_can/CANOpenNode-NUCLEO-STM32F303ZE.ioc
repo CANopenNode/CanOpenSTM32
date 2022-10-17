@@ -1,9 +1,10 @@
 #MicroXplorer Configuration settings - do not modify
+CAN.ABOM=ENABLE
 CAN.BS1=CAN_BS1_10TQ
 CAN.CalculateBaudRate=124999
 CAN.CalculateTimeBit=8000
 CAN.CalculateTimeQuantum=666.6666666666667
-CAN.IPParameters=CalculateTimeQuantum,CalculateTimeBit,CalculateBaudRate,Prescaler,BS1,NART
+CAN.IPParameters=CalculateTimeQuantum,CalculateTimeBit,CalculateBaudRate,Prescaler,BS1,NART,ABOM
 CAN.NART=ENABLE
 CAN.Prescaler=24
 File.Version=6

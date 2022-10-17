@@ -60,7 +60,13 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+/* Timer interrupt function executes every 1 ms */
+void
+HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim) {
+    if (htim == canopenNodeSTM32->timerHandle) {
+        canopen_app_interrupt();
+    }
+}
 /* USER CODE END 0 */
 
 /**
