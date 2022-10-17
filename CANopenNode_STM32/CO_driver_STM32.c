@@ -673,10 +673,10 @@ HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef* hcan) {
 void
 CO_CANinterrupt_TX(CO_CANmodule_t* CANmodule, uint32_t MailboxNumber) {
 
-    CANModule_local->firstCANtxMessage = false;            /* First CAN message (bootup) was sent successfully */
-    CANModule_local->bufferInhibitFlag = false;            /* Clear flag from previous message */
-    if (CANModule_local->CANtxCount > 0U) {                /* Are there any new messages waiting to be send */
-        CO_CANtx_t* buffer = &CANModule_local->txArray[0]; /* Start with first buffer handle */
+    CANmodule->firstCANtxMessage = false;            /* First CAN message (bootup) was sent successfully */
+    CANmodule->bufferInhibitFlag = false;            /* Clear flag from previous message */
+    if (CANmodule->CANtxCount > 0U) {                /* Are there any new messages waiting to be send */
+        CO_CANtx_t* buffer = &CANmodule->txArray[0]; /* Start with first buffer handle */
         uint16_t i;
 
         /*
@@ -687,37 +687,37 @@ CO_CANinterrupt_TX(CO_CANmodule_t* CANmodule, uint32_t MailboxNumber) {
 		 * (unless you can guarantee no higher priority interrupt will try to access to CAN instance and send data,
 		 *  then no need to lock interrupts..)
 		 */
-        CO_LOCK_CAN_SEND(CANModule_local);
-        for (i = CANModule_local->txSize; i > 0U; --i, ++buffer) {
+        CO_LOCK_CAN_SEND(CANmodule);
+        for (i = CANmodule->txSize; i > 0U; --i, ++buffer) {
             /* Try to send message */
             if (buffer->bufferFull) {
-                if (prv_send_can_message(CANModule_local, buffer)) {
+                if (prv_send_can_message(CANmodule, buffer)) {
                     buffer->bufferFull = false;
-                    CANModule_local->CANtxCount--;
-                    CANModule_local->bufferInhibitFlag = buffer->syncFlag;
+                    CANmodule->CANtxCount--;
+                    CANmodule->bufferInhibitFlag = buffer->syncFlag;
                 }
             }
         }
         /* Clear counter if no more messages */
         if (i == 0U) {
-            CANModule_local->CANtxCount = 0U;
+            CANmodule->CANtxCount = 0U;
         }
-        CO_UNLOCK_CAN_SEND(CANModule_local);
+        CO_UNLOCK_CAN_SEND(CANmodule);
     }
 }
 
 void
 HAL_CAN_TxMailbox0CompleteCallback(CAN_HandleTypeDef* hcan) {
-    CO_CANinterrupt_TX(hcan, CAN_TX_MAILBOX0);
+    CO_CANinterrupt_TX(CANModule_local, CAN_TX_MAILBOX0);
 }
 
 void
 HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef* hcan) {
-    CO_CANinterrupt_TX(hcan, CAN_TX_MAILBOX0);
+    CO_CANinterrupt_TX(CANModule_local, CAN_TX_MAILBOX0);
 }
 
 void
 HAL_CAN_TxMailbox2CompleteCallback(CAN_HandleTypeDef* hcan) {
-    CO_CANinterrupt_TX(hcan, CAN_TX_MAILBOX0);
+    CO_CANinterrupt_TX(CANModule_local, CAN_TX_MAILBOX0);
 }
 #endif
