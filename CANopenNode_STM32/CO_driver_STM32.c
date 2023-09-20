@@ -634,11 +634,9 @@ HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t BufferI
                     CANModule_local->CANtxCount--;
                     CANModule_local->bufferInhibitFlag = buffer->syncFlag;
                 }
+                else
+                    break;  // if we could not send the message, break out of the loop (the tx buffers are full)
             }
-        }
-        /* Clear counter if no more messages */
-        if (i == 0U) {
-            CANModule_local->CANtxCount = 0U;
         }
         CO_UNLOCK_CAN_SEND(CANModule_local);
     }
@@ -696,11 +694,9 @@ CO_CANinterrupt_TX(CO_CANmodule_t* CANmodule, uint32_t MailboxNumber) {
                     CANmodule->CANtxCount--;
                     CANmodule->bufferInhibitFlag = buffer->syncFlag;
                 }
+                else
+                    break;  // if we could not send the message, break out of the loop (the tx buffers are full)
             }
-        }
-        /* Clear counter if no more messages */
-        if (i == 0U) {
-            CANmodule->CANtxCount = 0U;
         }
         CO_UNLOCK_CAN_SEND(CANmodule);
     }
