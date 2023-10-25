@@ -90,7 +90,8 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
         log_printf("Error: Can't allocate memory\n");
         return 1;
     } else {
-        log_printf("Allocated %u bytes for CANopen objects\n", heapMemoryUsed);
+#warning changed %u to %lu  because heapMemoryUsed is a uint32_t variabil
+        log_printf("Allocated %lu bytes for CANopen objects\n", heapMemoryUsed);
     }
 
     canopenNodeSTM32->canOpenStack = CO;
@@ -133,6 +134,7 @@ canopen_app_resetCommunication() {
                                                 .productCode = OD_PERSIST_COMM.x1018_identity.productCode,
                                                 .revisionNumber = OD_PERSIST_COMM.x1018_identity.revisionNumber,
                                                 .serialNumber = OD_PERSIST_COMM.x1018_identity.serialNumber}};
+#warning changed baudrate from uint8_t to uint16_t because uint16_t is defined in CO_LSSinit
     err = CO_LSSinit(CO, &lssAddress, &canopenNodeSTM32->desiredNodeID, &canopenNodeSTM32->baudrate);
     if (err != CO_ERROR_NO) {
         log_printf("Error: LSS slave initialization failed: %d\n", err);
@@ -155,7 +157,8 @@ canopen_app_resetCommunication() {
                          canopenNodeSTM32->activeNodeID, &errInfo);
     if (err != CO_ERROR_NO && err != CO_ERROR_NODE_ID_UNCONFIGURED_LSS) {
         if (err == CO_ERROR_OD_PARAMETERS) {
-            log_printf("Error: Object Dictionary entry 0x%X\n", errInfo);
+#warning changed %X to %lX because errInfo is a uint32_t variabil
+            log_printf("Error: Object Dictionary entry 0x%lX\n", errInfo);
         } else {
             log_printf("Error: CANopen initialization failed: %d\n", err);
         }
@@ -165,7 +168,8 @@ canopen_app_resetCommunication() {
     err = CO_CANopenInitPDO(CO, CO->em, OD, canopenNodeSTM32->activeNodeID, &errInfo);
     if (err != CO_ERROR_NO) {
         if (err == CO_ERROR_OD_PARAMETERS) {
-            log_printf("Error: Object Dictionary entry 0x%X\n", errInfo);
+#warning changed %X to %lX because errInfo is a uint32_t variabil
+            log_printf("Error: Object Dictionary entry 0x%lX\n", errInfo);
         } else {
             log_printf("Error: PDO initialization failed: %d\n", err);
         }
