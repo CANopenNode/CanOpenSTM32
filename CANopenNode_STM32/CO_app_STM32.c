@@ -91,11 +91,7 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
         return 1;
     } else {
 
-#ifdef __CC_ARM
-        log_printf("Allocated %u bytes for CANopen objects\n", heapMemoryUsed);
-#else
         log_printf("Allocated %lu bytes for CANopen objects\n", (unsigned long) heapMemoryUsed);
-#endif
     }
 
     canopenNodeSTM32->canOpenStack = CO;
@@ -138,7 +134,6 @@ canopen_app_resetCommunication() {
                                                 .productCode = OD_PERSIST_COMM.x1018_identity.productCode,
                                                 .revisionNumber = OD_PERSIST_COMM.x1018_identity.revisionNumber,
                                                 .serialNumber = OD_PERSIST_COMM.x1018_identity.serialNumber}};
-#warning changed baudrate from uint8_t to uint16_t because uint16_t is defined in CO_LSSinit
     err = CO_LSSinit(CO, &lssAddress, &canopenNodeSTM32->desiredNodeID, &canopenNodeSTM32->baudrate);
     if (err != CO_ERROR_NO) {
         log_printf("Error: LSS slave initialization failed: %d\n", err);
@@ -162,11 +157,7 @@ canopen_app_resetCommunication() {
     if (err != CO_ERROR_NO && err != CO_ERROR_NODE_ID_UNCONFIGURED_LSS) {
         if (err == CO_ERROR_OD_PARAMETERS) {
 
-#ifdef __CC_ARM
-            log_printf("Error: Object Dictionary entry 0x%X\n", errInfo);
-#else
             log_printf("Error: Object Dictionary entry 0x%lX\n", (unsigned long) errInfo);
-#endif
         } else {
             log_printf("Error: CANopen initialization failed: %d\n", err);
         }
@@ -176,11 +167,7 @@ canopen_app_resetCommunication() {
     err = CO_CANopenInitPDO(CO, CO->em, OD, canopenNodeSTM32->activeNodeID, &errInfo);
     if (err != CO_ERROR_NO) {
         if (err == CO_ERROR_OD_PARAMETERS) {
-#ifdef __CC_ARM
-            log_printf("Error: Object Dictionary entry 0x%X\n", errInfo);
-#else
             log_printf("Error: Object Dictionary entry 0x%lX\n", (unsigned long) errInfo);
-#endif
         } else {
             log_printf("Error: PDO initialization failed: %d\n", err);
         }
@@ -265,6 +252,3 @@ canopen_app_interrupt(void) {
     CO_UNLOCK_OD(CO->CANmodule);
 }
 
-void Init_OD(void){
-
-}
