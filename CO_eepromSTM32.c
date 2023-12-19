@@ -23,9 +23,9 @@
  */
 
 //#include "cmsis_os.h"
-#include "storage/CO_eeprom.h"
 #include "301/crc16-ccitt.h"
 #include "i2c.h"
+#include "storage/CO_eeprom.h"
 
 #include <stdlib.h>
 
@@ -34,14 +34,13 @@
  */
 
 #ifndef EEPROM
-  #define EEPROM
-  #define EEPROM_ADDRESS	0xA0
-  #define EEPROM_BUFFER_SIZE	0x2000 // 64 kbit = 0x2000, 128 = 0x4000, 256 = 0x8000
-  #define EEPROM_PAGE_SIZE	32  // Page size
-  #define EEPROM_WRITE_TIME	5   // Page write time in ms
-  #define EEPROM_TIMEOUT	200  // timeout for write
+#define EEPROM
+#define EEPROM_ADDRESS     0xA0
+#define EEPROM_BUFFER_SIZE 0x2000 // 64 kbit = 0x2000, 128 = 0x4000, 256 = 0x8000
+#define EEPROM_PAGE_SIZE   32     // Page size
+#define EEPROM_WRITE_TIME  5      // Page write time in ms
+#define EEPROM_TIMEOUT     200    // timeout for write
 #endif
-
 
 /*
  * Eeprom is configured so, that first half of memory locations is not write
@@ -54,13 +53,11 @@
 static size_t eepromAddrNextAuto = 0;
 static size_t eepromAddrNextProt = EEPROM_BUFFER_SIZE / 2;
 
-
 I2C_HandleTypeDef* eeprom_i2c = &hi2c2;
 
-
-
 /******************************************************************************/
-bool_t CO_eeprom_init(void *storageModule) {
+bool_t
+CO_eeprom_init(void* storageModule) {
 
     eepromAddrNextAuto = 0;
     eepromAddrNextProt = EEPROM_BUFFER_SIZE / 2;
@@ -68,11 +65,9 @@ bool_t CO_eeprom_init(void *storageModule) {
     return HAL_I2C_IsDeviceReady(eeprom_i2c, EEPROM_ADDRESS, 10, EEPROM_TIMEOUT) == HAL_OK;
 }
 
-
 /******************************************************************************/
-size_t CO_eeprom_getAddr(void *storageModule, bool_t isAuto,
-                         size_t len, bool_t *overflow)
-{
+size_t
+CO_eeprom_getAddr(void* storageModule, bool_t isAuto, size_t len, bool_t* overflow) {
     size_t addr;
 
     if (isAuto) {
@@ -82,8 +77,7 @@ size_t CO_eeprom_getAddr(void *storageModule, bool_t isAuto,
         if (eepromAddrNextAuto > (EEPROM_BUFFER_SIZE / 2)) {
             *overflow = true;
         }
-    }
-    else {
+    } else {
         /* addresses for storage on command */
         addr = eepromAddrNextProt;
         eepromAddrNextProt += len;
@@ -96,82 +90,74 @@ size_t CO_eeprom_getAddr(void *storageModule, bool_t isAuto,
     return addr;
 }
 
-
 /******************************************************************************/
-void CO_eeprom_readBlock(void *storageModule, uint8_t *data,
-			 size_t eepromAddr, size_t len)
-{
-  HAL_StatusTypeDef Result = HAL_OK;
-  uint16_t u16ByteCounter = 0;
+void
+CO_eeprom_readBlock(void* storageModule, uint8_t* data, size_t eepromAddr, size_t len) {
+    HAL_StatusTypeDef Result = HAL_OK;
+    uint16_t u16ByteCounter = 0;
 
+    while (HAL_I2C_IsDeviceReady(eeprom_i2c, EEPROM_ADDRESS, 10, EEPROM_TIMEOUT) != HAL_OK);
 
-  while(HAL_I2C_IsDeviceReady(eeprom_i2c, EEPROM_ADDRESS, 10, EEPROM_TIMEOUT) != HAL_OK);
+    while (u16ByteCounter < len && Result == HAL_OK) {
 
-  while (u16ByteCounter < len && Result == HAL_OK)
-  {
+        uint16_t u16BytesToRead = len - u16ByteCounter;
 
-      uint16_t u16BytesToRead = len - u16ByteCounter;
+        if (u16BytesToRead >= EEPROM_PAGE_SIZE) {
+            // More Pages
+            Result = HAL_I2C_Mem_Read(eeprom_i2c, EEPROM_ADDRESS, eepromAddr + u16ByteCounter, I2C_MEMADD_SIZE_16BIT,
+                                      &data[u16ByteCounter], EEPROM_PAGE_SIZE, EEPROM_TIMEOUT);
+            u16ByteCounter += EEPROM_PAGE_SIZE;
+        } else {
+            // Less than one page
+            Result = HAL_I2C_Mem_Read(eeprom_i2c, EEPROM_ADDRESS, eepromAddr + u16ByteCounter, I2C_MEMADD_SIZE_16BIT,
+                                      &data[u16ByteCounter], u16BytesToRead, EEPROM_TIMEOUT);
+            u16ByteCounter += u16BytesToRead;
+        }
 
-      if (u16BytesToRead >= EEPROM_PAGE_SIZE)
-      {
-          // More Pages
-          Result = HAL_I2C_Mem_Read(eeprom_i2c, EEPROM_ADDRESS, eepromAddr + u16ByteCounter, I2C_MEMADD_SIZE_16BIT, &data[u16ByteCounter], EEPROM_PAGE_SIZE, EEPROM_TIMEOUT);
-          u16ByteCounter += EEPROM_PAGE_SIZE;
-      }
-      else
-      {
-          // Less than one page
-          Result = HAL_I2C_Mem_Read(eeprom_i2c, EEPROM_ADDRESS, eepromAddr + u16ByteCounter, I2C_MEMADD_SIZE_16BIT, &data[u16ByteCounter], u16BytesToRead, EEPROM_TIMEOUT);
-          u16ByteCounter += u16BytesToRead;
-      }
-
-      if (Result != HAL_OK) {
-	  break;
-      }
-  }
+        if (Result != HAL_OK) {
+            break;
+        }
+    }
 }
 
-
 /******************************************************************************/
-bool_t CO_eeprom_writeBlock(void *storageModule, uint8_t *data,
-                            size_t eepromAddr, size_t len)
-{
+bool_t
+CO_eeprom_writeBlock(void* storageModule, uint8_t* data, size_t eepromAddr, size_t len) {
 
-  HAL_StatusTypeDef Result = HAL_OK;
-  uint16_t u16ByteCounter = 0;
+    HAL_StatusTypeDef Result = HAL_OK;
+    uint16_t u16ByteCounter = 0;
 
-  while (u16ByteCounter < len && Result == HAL_OK)
-  {
-      while(HAL_I2C_IsDeviceReady(eeprom_i2c, EEPROM_ADDRESS, 10, EEPROM_TIMEOUT) != HAL_OK);
+    while (u16ByteCounter < len && Result == HAL_OK) {
+        while (HAL_I2C_IsDeviceReady(eeprom_i2c, EEPROM_ADDRESS, 10, EEPROM_TIMEOUT) != HAL_OK)
+            ;
 
-      uint16_t u16BytesToWrite = EEPROM_PAGE_SIZE - (eepromAddr + u16ByteCounter) % EEPROM_PAGE_SIZE;
+        uint16_t u16BytesToWrite = EEPROM_PAGE_SIZE - (eepromAddr + u16ByteCounter) % EEPROM_PAGE_SIZE;
 
-      if ((u16BytesToWrite + u16ByteCounter) > len)
-	u16BytesToWrite = len - u16ByteCounter;
+        if ((u16BytesToWrite + u16ByteCounter) > len) {
+            u16BytesToWrite = len - u16ByteCounter;
+        }
 
-      Result = HAL_I2C_Mem_Write(eeprom_i2c, EEPROM_ADDRESS, eepromAddr + u16ByteCounter, I2C_MEMADD_SIZE_16BIT, &data[u16ByteCounter], u16BytesToWrite, EEPROM_TIMEOUT);
-      u16ByteCounter += u16BytesToWrite;
+        Result = HAL_I2C_Mem_Write(eeprom_i2c, EEPROM_ADDRESS, eepromAddr + u16ByteCounter, I2C_MEMADD_SIZE_16BIT,
+                                   &data[u16ByteCounter], u16BytesToWrite, EEPROM_TIMEOUT);
+        u16ByteCounter += u16BytesToWrite;
 
-      if (Result != HAL_OK) {
-	  break;
-      }
+        if (Result != HAL_OK) {
+            break;
+        }
+    }
 
-  }
-
-  return Result == HAL_OK;
+    return Result == HAL_OK;
 }
 
-
 /******************************************************************************/
-uint16_t CO_eeprom_getCrcBlock(void *storageModule,
-                               size_t eepromAddr, size_t len)
-{
+uint16_t
+CO_eeprom_getCrcBlock(void* storageModule, size_t eepromAddr, size_t len) {
     uint16_t crc = 0;
     uint8_t data[EEPROM_PAGE_SIZE];
     size_t addr = eepromAddr;
 
     while (len > 0) {
-	size_t subLen = len < sizeof(data) ? len : sizeof(data);
+        size_t subLen = len < sizeof(data) ? len : sizeof(data);
 
         /* update crc from data part */
         CO_eeprom_readBlock(storageModule, data, addr, subLen);
@@ -184,11 +170,9 @@ uint16_t CO_eeprom_getCrcBlock(void *storageModule,
     return crc;
 }
 
-
 /******************************************************************************/
-bool_t CO_eeprom_updateBlock(void *storageModule, uint8_t *data,
-                            size_t eepromAddr, size_t len)
-{
+bool_t
+CO_eeprom_updateBlock(void* storageModule, uint8_t* data, size_t eepromAddr, size_t len) {
     bool_t Result = false;
 
     /* Verify, if data in eeprom are equal*/
@@ -196,27 +180,24 @@ bool_t CO_eeprom_updateBlock(void *storageModule, uint8_t *data,
     uint16_t data_crc = CO_eeprom_getCrcBlock(storageModule, eepromAddr, len);
 
     /* If data in EEPROM differs, then write it to EEPROM. */
-    if(data_rx_crc != data_crc) {
-	Result = CO_eeprom_writeBlock(storageModule, data, eepromAddr, len);
+    if (data_rx_crc != data_crc) {
+        Result = CO_eeprom_writeBlock(storageModule, data, eepromAddr, len);
     }
 
     return Result;
 }
 
-
-bool_t CO_eeprom_updateByte(void *storageModule, uint8_t data,
-                            size_t eepromAddr)
-{
+bool_t
+CO_eeprom_updateByte(void* storageModule, uint8_t data, size_t eepromAddr) {
     /* read data byte from eeprom */
     uint8_t data_rx;
     bool_t Result = false;
 
     CO_eeprom_readBlock(storageModule, &data_rx, eepromAddr, 1);
 
-
     /* If data in EEPROM differs, then write it to EEPROM. */
-    if(data_rx != data) {
-	Result = CO_eeprom_writeBlock(storageModule, &data, eepromAddr, 1);
+    if (data_rx != data) {
+        Result = CO_eeprom_writeBlock(storageModule, &data, eepromAddr, 1);
     }
 
     return Result;

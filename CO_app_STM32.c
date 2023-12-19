@@ -24,11 +24,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <CO_eepromSTM32.h>
-#include "storage/CO_storageEeprom.h"
 #include "CO_app_STM32.h"
 #include "CANopen.h"
 #include "main.h"
+#include "storage/CO_storageEeprom.h"
+#include <CO_eepromSTM32.h>
 #include <stdio.h>
 
 #include "OD.h"
@@ -40,12 +40,12 @@ CANopenNodeSTM32*
 #define log_printf(macropar_message, ...) printf(macropar_message, ##__VA_ARGS__)
 
 /* default values for CO_CANopenInit() */
-#define NMT_CONTROL CO_NMT_ERR_ON_ERR_REG | CO_ERR_REG_GENERIC_ERR | CO_ERR_REG_COMMUNICATION
-#define FIRST_HB_TIME        500
-#define SDO_SRV_TIMEOUT_TIME 1000
-#define SDO_CLI_TIMEOUT_TIME 500
-#define SDO_CLI_BLOCK        false
-#define OD_STATUS_BITS       NULL
+#define NMT_CONTROL                       CO_NMT_ERR_ON_ERR_REG | CO_ERR_REG_GENERIC_ERR | CO_ERR_REG_COMMUNICATION
+#define FIRST_HB_TIME                     500
+#define SDO_SRV_TIMEOUT_TIME              1000
+#define SDO_CLI_TIMEOUT_TIME              500
+#define SDO_CLI_BLOCK                     false
+#define OD_STATUS_BITS                    NULL
 
 /* Definitions for application specific data storage objects */
 #ifndef CO_STORAGE_APPLICATION
@@ -55,62 +55,61 @@ CANopenNodeSTM32*
 /* Global variables and objects */
 CO_t* CO = NULL; /* CANopen object */
 
-
 static uint8_t CO_activeNodeId = CO_LSS_NODE_ID_ASSIGNMENT;
 
 // Global variables
 uint32_t time_old, time_current;
 CO_ReturnError_t err;
 
-
 /* Function for determining baudrate given an integer */
-static inline uint16_t parseBaudrate(uint8_t baudrate) {
-  switch(baudrate) {
-    case 0x01:	return 125;
-    case 0x02:	return 250;
-    case 0x03:	return 500;
+static inline uint16_t
+parseBaudrate(uint8_t baudrate) {
+    switch (baudrate) {
+        case 0x01:
+            return 125;
+        case 0x02:
+            return 250;
+        case 0x03:
+            return 500;
 
-    default:    return 0;
-  }
+        default:
+            return 0;
+    }
 }
 
-
-/* Data block for data, which can be stored to non-volatile memory */
+/* Data block for storage, which can be stored to non-volatile memory */
 #if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
-  uint32_t storageInitError = 0;
+uint32_t storageInitError = 0;
 
-  static CO_storage_t storage;
-  static CO_storage_entry_t storageEntries[] = {
-		  {
-		  .addr = &OD_PERSIST_COMM,
-		  .len = sizeof(OD_PERSIST_COMM),
-		  .subIndexOD = 2,
-		  .attr = CO_storage_cmd | CO_storage_restore
-		  },
-		  {
-		  .addr = &OD_PERSIST_LAYER,
-		  .len = sizeof(OD_PERSIST_LAYER),
-		  .subIndexOD = 5,
-		  .attr = CO_storage_cmd | CO_storage_restore | CO_storage_cmd_all_exclude | CO_storage_restore_all_exclude
-		  },
-		  {
-		  .addr = &OD_PERSIST_APP,
-		  .len = sizeof(OD_PERSIST_APP),
-		  .subIndexOD = 4,
-		  .attr = CO_storage_cmd | CO_storage_auto
-		  },
-		  CO_STORAGE_APPLICATION
-  };
+static CO_storage_t storage;
+static CO_storage_entry_t storageEntries[] = {
+    {
+     .addr = &OD_PERSIST_COMM,
+     .len = sizeof(OD_PERSIST_COMM),
+     .subIndexOD = 2,
+     .attr = CO_storage_cmd | CO_storage_restore
+    },
+    {
+     .addr = &OD_PERSIST_LAYER,
+     .len = sizeof(OD_PERSIST_LAYER),
+     .subIndexOD = 5,
+     .attr = CO_storage_cmd | CO_storage_restore | CO_storage_cmd_all_exclude | CO_storage_restore_all_exclude
+    },
+    {
+     .addr = &OD_PERSIST_APP, 
+     .len = sizeof(OD_PERSIST_APP), 
+     .subIndexOD = 4, 
+     .attr = CO_storage_cmd | CO_storage_auto
+    },
+    CO_STORAGE_APPLICATION};
 
-  OD_extension_t OD_LayerSettings_extension = {
-      .object = NULL,
-      .read = OD_readOriginal,
-      .write = OD_write_layerSettings
-  };
+OD_extension_t OD_LayerSettings_extension = {
+	.object = NULL,
+	.read = OD_readOriginal,
+	.write = OD_write_layerSettings
+};
+
 #endif
-
-
-
 
 /*
  * Custom function for writing OD object "Layer Settings"
@@ -118,33 +117,32 @@ static inline uint16_t parseBaudrate(uint8_t baudrate) {
  * Mainly contains check for correct code in protection subindex,
  * in order to unlock node id and baudrate change.
  */
-ODR_t OD_write_layerSettings(OD_stream_t *stream, const void *buf,
-			   OD_size_t count, OD_size_t *countWritten)
-{
+ODR_t
+OD_write_layerSettings(OD_stream_t* stream, const void* buf, OD_size_t count, OD_size_t* countWritten) {
     /* verify arguments */
-     if (stream == NULL || stream->subIndex == 0 || buf == NULL || count != 1 || countWritten == NULL) {
-	return ODR_DEV_INCOMPAT;
+    if (stream == NULL || stream->subIndex == 0 || buf == NULL || count != 1 || countWritten == NULL) {
+        return ODR_DEV_INCOMPAT;
     }
 
     if (stream->subIndex == 0) {
-	return ODR_READONLY;
+        return ODR_READONLY;
     }
 
-    /* Check for correct code in the protection subindex */
+    /* Check for correct code in the protection subindex if trying to save layer settings */
     if ((stream->subIndex == 1 || stream->subIndex == 2) && OD_PERSIST_LAYER.x2000_layerSettings.protection != 0xAA) {
-	return ODR_READONLY;
+        return ODR_READONLY;
     }
 
     ODR_t returnCode = ODR_OK;
 
     returnCode = OD_writeOriginal(stream, buf, count, countWritten);
 
-
     return returnCode;
 }
 
 /* This function will basically setup the CANopen node */
-int canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
+int
+canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
 
     // Keep a copy global reference of canOpenSTM32 Object
     canopenNodeSTM32 = _canopenNodeSTM32;
@@ -171,20 +169,13 @@ int canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
 
     canopenNodeSTM32->CO_Stack = CO;
 
-
 #if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
 
     uint8_t storageEntriesCount = sizeof(storageEntries) / sizeof(storageEntries[0]);
 
-    err = CO_storageEeprom_init(&storage,
-                                CO->CANmodule,
-                                NULL,
-                                OD_ENTRY_H1010_storeParameters,
-                                OD_ENTRY_H1011_restoreDefaultParameters,
-                                storageEntries,
-                                storageEntriesCount,
+    err = CO_storageEeprom_init(&storage, CO->CANmodule, NULL, OD_ENTRY_H1010_storeParameters,
+                                OD_ENTRY_H1011_restoreDefaultParameters, storageEntries, storageEntriesCount,
                                 &storageInitError);
-
 
     if (err != CO_ERROR_NO && err != CO_ERROR_DATA_CORRUPT) {
         log_printf("[ERROR]: Storage %lu\n", storageInitError);
@@ -198,27 +189,28 @@ int canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
         return 2;
     }
 
-
 #endif
-
 
     uint16_t persist_baudrate = parseBaudrate(OD_PERSIST_LAYER.x2000_layerSettings.baudrate);
     uint8_t persist_nodeid = OD_PERSIST_LAYER.x2000_layerSettings.nodeID;
 
     // Check for valid baudrate
     if (!CO_LSSchkBitrateCallback(NULL, persist_baudrate)) {
-	if (!CO_LSSchkBitrateCallback(NULL, canopenNodeSTM32->baudrate))
-	  canopenNodeSTM32->baudrate = 250;
-    } else
-      canopenNodeSTM32->baudrate = persist_baudrate;
+        if (!CO_LSSchkBitrateCallback(NULL, canopenNodeSTM32->baudrate)) {
+            canopenNodeSTM32->baudrate = 250;
+        }
+    } else {
+        canopenNodeSTM32->baudrate = persist_baudrate;
+    }
 
     // Check for valid node id
     if (persist_nodeid < 1 || persist_nodeid > 127) {
-      if (canopenNodeSTM32->desiredNodeID < 1 || canopenNodeSTM32->desiredNodeID > 127) {
-	  canopenNodeSTM32->desiredNodeID = 0x10;
-      }
-    } else
-      canopenNodeSTM32->desiredNodeID = persist_nodeid;
+        if (canopenNodeSTM32->desiredNodeID < 1 || canopenNodeSTM32->desiredNodeID > 127) {
+            canopenNodeSTM32->desiredNodeID = 0x10;
+        }
+    } else {
+        canopenNodeSTM32->desiredNodeID = persist_nodeid;
+    }
 
     OD_PERSIST_LAYER.x2000_layerSettings.protection = 0x00;
 
@@ -226,7 +218,8 @@ int canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
     return 0;
 }
 
-int canopen_app_resetCommunication() {
+int
+canopen_app_resetCommunication() {
     /* CANopen communication reset - initialize CANopen objects *******************/
     log_printf("CANopenNode - Reset communication...\n");
 
@@ -269,8 +262,8 @@ int canopen_app_resetCommunication() {
                          SDO_SRV_TIMEOUT_TIME, /* SDOserverTimeoutTime_ms */
                          SDO_CLI_TIMEOUT_TIME, /* SDOclientTimeoutTime_ms */
                          SDO_CLI_BLOCK,        /* SDOclientBlockTransfer */
-                         //canopenNodeSTM32->activeNodeID, &errInfo);
-			 CO_activeNodeId, &errInfo);
+                                               //canopenNodeSTM32->activeNodeID, &errInfo);
+                         CO_activeNodeId, &errInfo);
     if (err != CO_ERROR_NO && err != CO_ERROR_NODE_ID_UNCONFIGURED_LSS) {
         if (err == CO_ERROR_OD_PARAMETERS) {
             log_printf("[ERROR]: Object Dictionary entry 0x%lX\n", errInfo);
@@ -291,9 +284,9 @@ int canopen_app_resetCommunication() {
         return 4;
     }
 
-    #if (CO_CONFIG_HB_CONS) & CO_CONFIG_FLAG_CALLBACK_PRE
-      CO_HBconsumer_initCallbackPre(canopenNodeSTM32->CO_Stack->HBcons, NULL, &canopen_app_heartbeat_rx);
-    #endif
+#if (CO_CONFIG_HB_CONS) & CO_CONFIG_FLAG_CALLBACK_PRE
+    CO_HBconsumer_initCallbackPre(canopenNodeSTM32->CO_Stack->HBcons, NULL, &canopen_app_heartbeat_rx);
+#endif
 
     /* Configure Timer interrupt function for execution every 1 millisecond */
     HAL_TIM_Base_Start_IT(canopenNodeSTM32->timerHandle); //1ms interrupt
@@ -303,11 +296,11 @@ int canopen_app_resetCommunication() {
     /* Configure CANopen callbacks, etc */
     if (!CO->nodeIdUnconfigured) {
 
-      #if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
-	if (storageInitError != 0) {
-	    CO_errorReport(CO->em, CO_EM_NON_VOLATILE_MEMORY, CO_EMC_HARDWARE, storageInitError);
-	}
-      #endif
+#if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
+        if (storageInitError != 0) {
+            CO_errorReport(CO->em, CO_EM_NON_VOLATILE_MEMORY, CO_EMC_HARDWARE, storageInitError);
+        }
+#endif
     } else {
         log_printf("[ERROR]: CANopenNode - Node-id not initialized\n");
     }
@@ -321,7 +314,8 @@ int canopen_app_resetCommunication() {
     return 0;
 }
 
-void canopen_app_process() {
+void
+canopen_app_process() {
     /* loop for normal program execution ******************************************/
     /* get time difference since last function call */
     time_current = HAL_GetTick();
@@ -335,9 +329,9 @@ void canopen_app_process() {
         canopenNodeSTM32->outStatusLEDRed = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
         canopenNodeSTM32->outStatusLEDGreen = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
 
-	#if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
-	    CO_storageEeprom_auto_process(&storage, true);
-	#endif
+#if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
+        CO_storageEeprom_auto_process(&storage, true);
+#endif
 
         if (reset_status == CO_RESET_COMM) {
             /* delete objects from memory */
@@ -371,13 +365,14 @@ canopen_app_interrupt(void) {
         CO_process_TPDO(CO, syncWas, timeDifference_us, NULL);
 #endif
 
-	  /* Further I/O or nonblocking application code may go here. */
+        /* Further I/O or nonblocking application code may go here. */
     }
     CO_UNLOCK_OD(CO->CANmodule);
 }
 
 #if (CO_CONFIG_HB_CONS) & CO_CONFIG_FLAG_CALLBACK_PRE
-void canopen_app_heartbeat_rx() {
-  canopenNodeSTM32->outStatusHBcons ^= 1;
+void
+canopen_app_heartbeat_rx() {
+    canopenNodeSTM32->outStatusHBcons ^= 1;
 }
 #endif

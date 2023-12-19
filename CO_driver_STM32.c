@@ -35,17 +35,17 @@
 static CO_CANmodule_t* CANModule_local = NULL; /* Local instance of global CAN module */
 
 /* CAN masks for identifiers */
-#define CANID_MASK 0x07FF /*!< CAN standard ID mask */
-#define GROUPID_MASK 0x780 /*!< CAN standard ID mask */
-#define NODEID_MASK 0x7F /*!< CAN standard ID mask */
-#define FLAG_RTR   0x8000 /*!< RTR flag, part of identifier */
+#define CANID_MASK   0x07FF /*!< CAN standard ID mask */
+#define GROUPID_MASK 0x780  /*!< CAN standard ID mask */
+#define NODEID_MASK  0x7F   /*!< CAN standard ID mask */
+#define FLAG_RTR     0x8000 /*!< RTR flag, part of identifier */
 
 /******************************************************************************/
 void
 CO_CANsetConfigurationMode(void* CANptr) {
     /* Put CAN module in configuration mode */
     if (CANptr != NULL) {
-	HAL_GPIO_WritePin(CAN_S_GPIO_Port, CAN_S_Pin, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(CAN_S_GPIO_Port, CAN_S_Pin, GPIO_PIN_SET);
 #ifdef CO_STM32_FDCAN_Driver
         HAL_FDCAN_Stop(((CANopenNodeSTM32*)CANptr)->CANHandle);
 #else
@@ -59,7 +59,7 @@ void
 CO_CANsetNormalMode(CO_CANmodule_t* CANmodule) {
     /* Put CAN module in normal mode */
     if (CANmodule->CANptr != NULL) {
-	HAL_GPIO_WritePin(CAN_S_GPIO_Port, CAN_S_Pin, GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(CAN_S_GPIO_Port, CAN_S_Pin, GPIO_PIN_RESET);
 #ifdef CO_STM32_FDCAN_Driver
         if (HAL_FDCAN_Start(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle) == HAL_OK)
 #else
@@ -72,11 +72,12 @@ CO_CANsetNormalMode(CO_CANmodule_t* CANmodule) {
 }
 
 /******************************************************************************/
-bool_t CO_LSSchkBitrateCallback(void *object, uint16_t bitRate) {
+bool_t
+CO_LSSchkBitrateCallback(void* object, uint16_t bitRate) {
     (void)object;
     int i;
 
-    for (i=0; i<(sizeof(CO_CANbitRateData)/sizeof(CO_CANbitRateData[0])); i++) {
+    for (i = 0; i < (sizeof(CO_CANbitRateData) / sizeof(CO_CANbitRateData[0])); i++) {
         if (CO_CANbitRateData[i].bitrate == bitRate && bitRate > 0) {
             return true;
         }
@@ -113,7 +114,6 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
     CANmodule->CANtxCount = 0U;
     CANmodule->errOld = 0U;
 
-
     /* Reset all variables */
     for (uint16_t i = 0U; i < rxSize; i++) {
         rxArray[i].ident = 0U;
@@ -130,24 +130,23 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
     /***************************************/
     ((CANopenNodeSTM32*)CANptr)->HWInitFunction();
 
-    const CO_CANbitRateData_t *CANbitRateData = NULL;
+    const CO_CANbitRateData_t* CANbitRateData = NULL;
 
     /* Configure CAN timing */
-    for (uint8_t i=0; i<(sizeof(CO_CANbitRateData)/sizeof(CO_CANbitRateData[0])); i++) {
+    for (uint8_t i = 0; i < (sizeof(CO_CANbitRateData) / sizeof(CO_CANbitRateData[0])); i++) {
         if (CO_CANbitRateData[i].bitrate == CANbitRate) {
             CANbitRateData = &CO_CANbitRateData[i];
             break;
         }
     }
 
-    ((CANopenNodeSTM32*)CANptr)->CANHandle->Init.Prescaler 	= CANbitRateData->Prescaler;
-    ((CANopenNodeSTM32*)CANptr)->CANHandle->Init.SyncJumpWidth 	= CANbitRateData->SJW;
-    ((CANopenNodeSTM32*)CANptr)->CANHandle->Init.TimeSeg1 	= CANbitRateData->TQ_SEG1;
-    ((CANopenNodeSTM32*)CANptr)->CANHandle->Init.TimeSeg2 	= CANbitRateData->TQ_SEG2;
+    ((CANopenNodeSTM32*)CANptr)->CANHandle->Init.Prescaler = CANbitRateData->Prescaler;
+    ((CANopenNodeSTM32*)CANptr)->CANHandle->Init.SyncJumpWidth = CANbitRateData->SJW;
+    ((CANopenNodeSTM32*)CANptr)->CANHandle->Init.TimeSeg1 = CANbitRateData->TQ_SEG1;
+    ((CANopenNodeSTM32*)CANptr)->CANHandle->Init.TimeSeg2 = CANbitRateData->TQ_SEG2;
 
-    if (HAL_CAN_Init(((CANopenNodeSTM32*)CANptr)->CANHandle) != HAL_OK)
-    {
-      Error_Handler();
+    if (HAL_CAN_Init(((CANopenNodeSTM32*)CANptr)->CANHandle) != HAL_OK) {
+        Error_Handler();
     }
 
     /*
@@ -165,101 +164,92 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
     }
 #else
 
+    CAN_FilterTypeDef FilterConfig;
+#if defined(CAN)
+    FilterConfig.FilterBank = 0;
 
-      CAN_FilterTypeDef FilterConfig;
-	#if defined(CAN)
-	  FilterConfig.FilterBank = 0;
+#else
+    if (((CAN_HandleTypeDef*)((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle)->Instance == CAN1) {
+        FilterConfig.FilterBank = 0;
+    } else {
+        FilterConfig.FilterBank = 14;
+    }
+#endif
 
-	#else
-	    if (((CAN_HandleTypeDef*)((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle)->Instance == CAN1) {
-		FilterConfig.FilterBank = 0;
-	    } else {
-		FilterConfig.FilterBank = 14;
-	    }
-	#endif
-
-
-      /*
+    /*
        * Configure filters for FIFO 0
        */
-      FilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
-      FilterConfig.FilterActivation = ENABLE;
-      FilterConfig.SlaveStartFilterBank = 14;
+    FilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+    FilterConfig.FilterActivation = ENABLE;
+    FilterConfig.SlaveStartFilterBank = 14;
 
-      /* Accept everything */
-      if (!CANmodule->useCANrxFilters) {
-	FilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
-	FilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
-	FilterConfig.FilterIdHigh = 0x0;
-	FilterConfig.FilterIdLow = 0x0;
-	FilterConfig.FilterMaskIdHigh = 0x0;
-	FilterConfig.FilterMaskIdLow = 0x0;
+    /* Accept everything */
+    if (!CANmodule->useCANrxFilters) {
+        FilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+        FilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+        FilterConfig.FilterIdHigh = 0x0;
+        FilterConfig.FilterIdLow = 0x0;
+        FilterConfig.FilterMaskIdHigh = 0x0;
+        FilterConfig.FilterMaskIdLow = 0x0;
 
-	if (HAL_CAN_ConfigFilter(((CANopenNodeSTM32*)CANptr)->CANHandle, &FilterConfig) != HAL_OK) {
-	    return CO_ERROR_ILLEGAL_ARGUMENT;
-	}
+        if (HAL_CAN_ConfigFilter(((CANopenNodeSTM32*)CANptr)->CANHandle, &FilterConfig) != HAL_OK) {
+            return CO_ERROR_ILLEGAL_ARGUMENT;
+        }
 
-      /* Hardware filters specified */
-      } else {
+        /* Hardware filters specified */
+    } else {
 
-	/* Accept NMT, SYNC, LSS Requst and TIME */
-	FilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
-	FilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
-	FilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
-	FilterConfig.FilterIdLow = CO_CAN_ID_NMT_SERVICE << 5;
-	FilterConfig.FilterIdHigh  = CO_CAN_ID_SYNC << 5;
-	FilterConfig.FilterMaskIdLow = CO_CAN_ID_LSS_MST << 5;
-	FilterConfig.FilterMaskIdHigh = CO_CAN_ID_TIME << 5;
+        /* Accept NMT, SYNC, LSS Requst and TIME */
+        FilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
+        FilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
+        FilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+        FilterConfig.FilterIdLow = CO_CAN_ID_NMT_SERVICE << 5;
+        FilterConfig.FilterIdHigh = CO_CAN_ID_SYNC << 5;
+        FilterConfig.FilterMaskIdLow = CO_CAN_ID_LSS_MST << 5;
+        FilterConfig.FilterMaskIdHigh = CO_CAN_ID_TIME << 5;
 
-	if (HAL_CAN_ConfigFilter(((CANopenNodeSTM32*)CANptr)->CANHandle, &FilterConfig) != HAL_OK) {
-	    return CO_ERROR_ILLEGAL_ARGUMENT;
-	}
+        if (HAL_CAN_ConfigFilter(((CANopenNodeSTM32*)CANptr)->CANHandle, &FilterConfig) != HAL_OK) {
+            return CO_ERROR_ILLEGAL_ARGUMENT;
+        }
 
-
-	/*
+        /*
 	 * Configure filters for FIFO 1
 	 */
-	FilterConfig.FilterBank++;
-	FilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
-	FilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
-	FilterConfig.FilterFIFOAssignment = CAN_RX_FIFO1;
+        FilterConfig.FilterBank++;
+        FilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
+        FilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+        FilterConfig.FilterFIFOAssignment = CAN_RX_FIFO1;
 
-	/* Accept RPDO and RSDO */
-	FilterConfig.FilterIdLow = canopenNodeSTM32->desiredNodeID << 5;
-	FilterConfig.FilterMaskIdLow = 0xFF << 5;
+        /* Accept RPDO and RSDO */
+        FilterConfig.FilterIdLow = canopenNodeSTM32->desiredNodeID << 5;
+        FilterConfig.FilterMaskIdLow = 0xFF << 5;
 
-	/* Accept Global fail-safe command */
-	FilterConfig.FilterIdHigh = CO_CAN_ID_GFC << 5;
-	FilterConfig.FilterMaskIdHigh = 0x7FF << 5;
+        /* Accept Global fail-safe command */
+        FilterConfig.FilterIdHigh = CO_CAN_ID_GFC << 5;
+        FilterConfig.FilterMaskIdHigh = 0x7FF << 5;
 
-	if (HAL_CAN_ConfigFilter(((CANopenNodeSTM32*)CANptr)->CANHandle, &FilterConfig) != HAL_OK) {
-	    return CO_ERROR_ILLEGAL_ARGUMENT;
-	}
+        if (HAL_CAN_ConfigFilter(((CANopenNodeSTM32*)CANptr)->CANHandle, &FilterConfig) != HAL_OK) {
+            return CO_ERROR_ILLEGAL_ARGUMENT;
+        }
 
+        /* Hearbeat filter */
+        FilterConfig.FilterBank++;
+        FilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
+        FilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+        FilterConfig.FilterFIFOAssignment = CAN_RX_FIFO1;
 
-	/* Hearbeat filter */
-	FilterConfig.FilterBank++;
-	FilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
-	FilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
-	FilterConfig.FilterFIFOAssignment = CAN_RX_FIFO1;
+        /* Hearbeat from 0 */
+        FilterConfig.FilterIdLow = (CO_CAN_ID_HEARTBEAT + 0x00) << 5;
+        FilterConfig.FilterMaskIdLow = 0x7FF;
 
-	/* Hearbeat from 0 */
-	FilterConfig.FilterIdLow = (CO_CAN_ID_HEARTBEAT + 0x00) << 5;
-	FilterConfig.FilterMaskIdLow = 0x7FF;
+        /* Hearbeat from 127 (0x7F) */
+        FilterConfig.FilterIdHigh = (CO_CAN_ID_HEARTBEAT + 0x7F) << 5;
+        FilterConfig.FilterMaskIdHigh = 0x7FF;
 
-	/* Hearbeat from 127 (0x7F) */
-	FilterConfig.FilterIdHigh = (CO_CAN_ID_HEARTBEAT + 0x7F) << 5;
-	FilterConfig.FilterMaskIdHigh = 0x7FF;
-
-	if (HAL_CAN_ConfigFilter(((CANopenNodeSTM32*)CANptr)->CANHandle, &FilterConfig) != HAL_OK) {
-	    return CO_ERROR_ILLEGAL_ARGUMENT;
-	}
-
-
-
-      }
-
-
+        if (HAL_CAN_ConfigFilter(((CANopenNodeSTM32*)CANptr)->CANHandle, &FilterConfig) != HAL_OK) {
+            return CO_ERROR_ILLEGAL_ARGUMENT;
+        }
+    }
 
 #endif
 
@@ -291,7 +281,7 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
 void
 CO_CANmodule_disable(CO_CANmodule_t* CANmodule) {
     if (CANmodule != NULL && CANmodule->CANptr != NULL) {
-	HAL_GPIO_WritePin(CAN_S_GPIO_Port, CAN_S_Pin, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(CAN_S_GPIO_Port, CAN_S_Pin, GPIO_PIN_SET);
 #ifdef CO_STM32_FDCAN_Driver
         HAL_FDCAN_Stop(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle);
 
@@ -536,7 +526,6 @@ CO_CANclearPendingSyncPDOs(CO_CANmodule_t* CANmodule) {
     * different way to determine errors. */
 static uint16_t rxErrors = 0, txErrors = 0, overflow = 0;
 
-
 void
 CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
     uint32_t err = 0;
@@ -691,22 +680,22 @@ prv_read_can_received_msg(CAN_HandleTypeDef* hcan, uint32_t fifo, uint32_t fifo_
 
     /* Loop through rx-buffer in order to find the appropriate callback function */
     for (index = CANModule_local->rxSize; index > 0U; --index, ++buffer) {
-	if (((rcvMsgIdent ^ buffer->ident) & buffer->mask) == 0U) {
-	    messageFound = 1;
-	    break;
-	}
+        if (((rcvMsgIdent ^ buffer->ident) & buffer->mask) == 0U) {
+            messageFound = 1;
+            break;
+        }
     }
 
-/*
+    /*
     if (CANModule_local->useCANrxFilters) {
 	__NOP();
     } else {
 */
-	/*
+    /*
 	 * We are not using hardware filters, hence it is necessary
 	 * to manually match received message ID with all buffers
 	 */
-/*	for (index = CANModule_local->rxSize; index > 0U; --index, ++buffer) {
+    /*	for (index = CANModule_local->rxSize; index > 0U; --index, ++buffer) {
 	    if (((rcvMsgIdent ^ buffer->ident) & buffer->mask) == 0U) {
 		messageFound = 1;
 		break;
