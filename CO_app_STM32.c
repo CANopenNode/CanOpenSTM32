@@ -79,27 +79,27 @@ static inline uint16_t parseBaudrate(uint8_t baudrate) {
 #if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
   uint32_t storageInitError = 0;
 
-  CO_storage_t storage;
-  CO_storage_entry_t storageEntries[] = {
-      {
-	  .addr = &OD_PERSIST_COMM,
-	  .len = sizeof(OD_PERSIST_COMM),
-	  .subIndexOD = 2,
-	  .attr = CO_storage_cmd | CO_storage_restore
-      },
-      {
-	  .addr = &OD_PERSIST_LAYER,
-	  .len = sizeof(OD_PERSIST_LAYER),
-	  .subIndexOD = 5,
-	  .attr = CO_storage_cmd | CO_storage_restore | CO_storage_cmd_all_exclude | CO_storage_restore_all_exclude
-      },
-      {
-	  .addr = &OD_PERSIST_APP,
-	  .len = sizeof(OD_PERSIST_APP),
-	  .subIndexOD = 4,
-	  .attr = CO_storage_cmd | CO_storage_auto
-      },
-      CO_STORAGE_APPLICATION
+  static CO_storage_t storage;
+  static CO_storage_entry_t storageEntries[] = {
+		  {
+		  .addr = &OD_PERSIST_COMM,
+		  .len = sizeof(OD_PERSIST_COMM),
+		  .subIndexOD = 2,
+		  .attr = CO_storage_cmd | CO_storage_restore
+		  },
+		  {
+		  .addr = &OD_PERSIST_LAYER,
+		  .len = sizeof(OD_PERSIST_LAYER),
+		  .subIndexOD = 5,
+		  .attr = CO_storage_cmd | CO_storage_restore | CO_storage_cmd_all_exclude | CO_storage_restore_all_exclude
+		  },
+		  {
+		  .addr = &OD_PERSIST_APP,
+		  .len = sizeof(OD_PERSIST_APP),
+		  .subIndexOD = 4,
+		  .attr = CO_storage_cmd | CO_storage_auto
+		  },
+		  CO_STORAGE_APPLICATION
   };
 
   OD_extension_t OD_LayerSettings_extension = {
