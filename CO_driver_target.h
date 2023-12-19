@@ -35,6 +35,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+
 // Determining the CANOpen Driver
 
 #if defined(FDCAN) || defined(FDCAN1) || defined(FDCAN2) || defined(FDCAN3)
@@ -45,7 +46,7 @@
 #error This STM32 Do not support CAN or FDCAN
 #endif
 
-#undef CO_CONFIG_STORAGE_ENABLE // We don't need Storage option, implement based on your use case and remove this line from here
+//#undef CO_CONFIG_STORAGE_ENABLE // We don't need Storage option, implement based on your use case and remove this line from here
 
 #ifdef CO_DRIVER_CUSTOM
 #include "CO_driver_custom.h"
@@ -70,6 +71,34 @@ extern "C" {
 typedef uint_fast8_t bool_t;
 typedef float float32_t;
 typedef double float64_t;
+
+
+#ifndef CO_CANbitRateDataInitializers
+  typedef struct {
+      uint8_t   Prescaler;      /* Prescaler */
+      uint32_t   SJW;      /* SJW time */
+      uint32_t   TQ_SEG1;   /* Time Quanta in Bit Segment 1 time */
+      uint32_t   TQ_SEG2;   /* Time Quanta in Bit  Segment 2 time */
+      uint16_t  bitrate;  /* bitrate in kbps */
+  } CO_CANbitRateData_t;
+
+
+  #if 1
+      #define CO_CANbitRateDataInitializers  \
+      {8, CAN_SJW_1TQ, CAN_BS1_13TQ, CAN_BS2_2TQ, 125}, \
+      {4, CAN_SJW_1TQ, CAN_BS1_13TQ, CAN_BS2_2TQ, 250}, \
+      {2, CAN_SJW_1TQ, CAN_BS1_13TQ, CAN_BS2_2TQ, 500}
+  #else
+    #error HSE_VALUE not supported
+  #endif
+
+  #ifdef CO_CANbitRateDataInitializers
+    static const CO_CANbitRateData_t CO_CANbitRateData[] = {
+	CO_CANbitRateDataInitializers
+    };
+  #endif
+
+#endif
 
 /**
  * \brief           CAN RX message for platform
@@ -123,18 +152,28 @@ typedef struct {
     uint32_t primask_send; /* Primask register for interrupts for send operation */
     uint32_t primask_emcy; /* Primask register for interrupts for emergency operation */
     uint32_t primask_od;   /* Primask register for interrupts for send operation */
-
 } CO_CANmodule_t;
 
 /* Data storage object for one entry */
 typedef struct {
-    void* addr;
+    void *addr;
     size_t len;
     uint8_t subIndexOD;
     uint8_t attr;
-    /* Additional variables (target specific) */
-    void* addrNV;
+    void *storageModule;
+    uint16_t crc;
+    size_t eepromAddrSignature;
+    size_t eepromAddr;
+    size_t offset;
 } CO_storage_entry_t;
+
+
+/* Callback for checking bitrate, needed by LSS slave */
+bool_t CO_LSSchkBitrateCallback(void *object, uint16_t bitRate);
+
+#ifndef CO_CONFIG_CRC16
+#define CO_CONFIG_CRC16 (CO_CONFIG_CRC16_ENABLE)
+#endif
 
 /* (un)lock critical section in CO_CANsend() */
 // Why disabling the whole Interrupt

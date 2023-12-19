@@ -22,7 +22,7 @@
  * limitations under the License.
  */
 
-#include "CO_storageBlank.h"
+#include <CO_storageBlank.h>
 
 #if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
 

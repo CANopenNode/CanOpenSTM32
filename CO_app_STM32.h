@@ -26,12 +26,12 @@ extern "C" {
 
 
 typedef struct {
-    uint8_t
+  uint8_t
         desiredNodeID; /*This is the Node ID that you ask the CANOpen stack to assign to your device, although it might not always
 	 * be the final NodeID, after calling canopen_app_init() you should check ActiveNodeID of CANopenNodeSTM32 structure for assigned Node ID.
 	 */
     uint8_t activeNodeID; /* Assigned Node ID */
-    uint8_t baudrate;     /* This is the baudrate you've set in your CubeMX Configuration */
+    uint16_t baudrate;     /* This is the baudrate you've set in your CubeMX Configuration */
     TIM_HandleTypeDef*
         timerHandle; /*Pass in the timer that is going to be used for generating 1ms interrupt for tmrThread function,
 	 * please note that CANOpenSTM32 Library will override HAL_TIM_PeriodElapsedCallback function, if you also need this function in your codes, please take required steps
@@ -48,8 +48,9 @@ typedef struct {
     void (*HWInitFunction)(); /* Pass in the function that initialize the CAN peripheral, usually MX_CAN_Init */
 
     uint8_t outStatusLEDGreen; // This will be updated by the stack - Use them for the LED management
-    uint8_t outStatusLEDRed;   // This will be updated by the stack - Use them for the LED management
-    CO_t* canOpenStack;
+    uint8_t outStatusLEDRed;   // This will be updated by the stack - Use them for the LED management¨
+    uint8_t outStatusHBcons; // Blinking bit on heartbeat consumer recieve
+    CO_t* CO_Stack;
 
 } CANopenNodeSTM32;
 
@@ -66,6 +67,13 @@ int canopen_app_resetCommunication();
 void canopen_app_process();
 /* Thread function executes in constant intervals, this function can be called from FreeRTOS tasks or Timers ********/
 void canopen_app_interrupt(void);
+
+ODR_t OD_write_layerSettings(OD_stream_t *stream, const void *buf,
+			   OD_size_t count, OD_size_t *countWritten);
+
+#if (CO_CONFIG_HB_CONS) & CO_CONFIG_FLAG_CALLBACK_PRE
+void canopen_app_heartbeat_rx();
+#endif
 
 #ifdef __cplusplus
 }
