@@ -128,8 +128,7 @@ CO_eeprom_writeBlock(void* storageModule, uint8_t* data, size_t eepromAddr, size
     uint16_t u16ByteCounter = 0;
 
     while (u16ByteCounter < len && Result == HAL_OK) {
-        while (HAL_I2C_IsDeviceReady(eeprom_i2c, EEPROM_ADDRESS, 10, EEPROM_TIMEOUT) != HAL_OK)
-            ;
+        while (HAL_I2C_IsDeviceReady(eeprom_i2c, EEPROM_ADDRESS, 10, EEPROM_TIMEOUT) != HAL_OK);
 
         uint16_t u16BytesToWrite = EEPROM_PAGE_SIZE - (eepromAddr + u16ByteCounter) % EEPROM_PAGE_SIZE;
 

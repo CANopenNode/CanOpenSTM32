@@ -108,7 +108,7 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
     CANmodule->txSize = txSize;
     CANmodule->CANerrorStatus = 0;
     CANmodule->CANnormal = false;
-    CANmodule->useCANrxFilters = true; /* Do not use HW filters */
+    CANmodule->useCANrxFilters = true;
     CANmodule->bufferInhibitFlag = false;
     CANmodule->firstCANtxMessage = true;
     CANmodule->CANtxCount = 0U;
@@ -176,9 +176,7 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
     }
 #endif
 
-    /*
-       * Configure filters for FIFO 0
-       */
+    /* Configure filters for FIFO 0 */
     FilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
     FilterConfig.FilterActivation = ENABLE;
     FilterConfig.SlaveStartFilterBank = 14;
@@ -198,8 +196,7 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
 
         /* Hardware filters specified */
     } else {
-
-        /* Accept NMT, SYNC, LSS Requst and TIME */
+        /* Accept NMT, SYNC, LSS Requst and TIME (FIFO0 already configured) */
         FilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
         FilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
         FilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
@@ -212,9 +209,7 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
             return CO_ERROR_ILLEGAL_ARGUMENT;
         }
 
-        /*
-	 * Configure filters for FIFO 1
-	 */
+        /* Configure filters for FIFO 1 */
         FilterConfig.FilterBank++;
         FilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
         FilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
@@ -314,34 +309,9 @@ CO_CANrxBufferInit(CO_CANmodule_t* CANmodule, uint16_t index, uint16_t ident, ui
 
         /* Set CAN hardware module filter and mask. */
         if (CANmodule->useCANrxFilters) {
-
-            /* Only NMT have ident = 0, in corresponding index, assumed to be 0, highest priority
-            if (buffer->ident == 0 && index != 0)
-              return ret;
-
-            CAN_FilterTypeDef sFilterConfig = {
-                .FilterIdLow = 0x00,
-                .FilterIdHigh = (ident << 5) | ((rtr ? 0x01 : 0x00) << 4),
-		.FilterMaskIdLow = 0x00,
-                .FilterMaskIdHigh = (mask << 5) | (0x01 << 4),
-		.FilterFIFOAssignment = CAN_RX_FIFO1,
-                .FilterBank = index,
-                .FilterMode = CAN_FILTERMODE_IDMASK,
-                .FilterScale = CAN_FILTERSCALE_32BIT, // two 16-bit filters
-                .FilterActivation = ENABLE,
-                .SlaveStartFilterBank = 0
-            };
-
-            // NMT and SYNC in FIFO0
-            if (ident == 0x00 || ident == 0x80)
-              sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
-
-            if (!(IS_CAN_FILTER_BANK_SINGLE(sFilterConfig.FilterBank)))
-              return CO_ERROR_ILLEGAL_ARGUMENT;
-
-            if (HAL_CAN_ConfigFilter(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle, &sFilterConfig) != HAL_OK) {
-        	ret = CO_ERROR_ILLEGAL_ARGUMENT;
-            }*/
+            // TODO? Should filter bank configuration be moved here from CO_CANmodule_init?
+        } else {
+            // Allow all?
         }
     } else {
         ret = CO_ERROR_ILLEGAL_ARGUMENT;
@@ -678,7 +648,10 @@ prv_read_can_received_msg(CAN_HandleTypeDef* hcan, uint32_t fifo, uint32_t fifo_
 
     buffer = CANModule_local->rxArray;
 
-    /* Loop through rx-buffer in order to find the appropriate callback function */
+    /* 
+     * Loop through rx-buffer in order to find the appropriate callback function 
+     * If hardware filters is enabled, the buffer should only contain relevant message IDs
+     */
     for (index = CANModule_local->rxSize; index > 0U; --index, ++buffer) {
         if (((rcvMsgIdent ^ buffer->ident) & buffer->mask) == 0U) {
             messageFound = 1;
@@ -832,6 +805,7 @@ CO_CANinterrupt_TX(CO_CANmodule_t* CANmodule, uint32_t MailboxNumber) {
                 }
             }
         }
+
         /* Clear counter if no more messages */
         if (i == 0U) {
             CANmodule->CANtxCount = 0U;
