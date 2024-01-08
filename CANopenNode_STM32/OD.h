@@ -16,7 +16,7 @@
 
         Created:      10.08.2023 09:07:00
         Created By:   
-        Modified:     02.11.2023 12:39:31
+        Modified:     08.01.2024 12:26:31
         Modified By:  
 
     Device Info:
@@ -421,10 +421,10 @@ typedef struct {
     char x407D_serviceErrorString125[2];
     char x407E_serviceErrorString126[2];
     char x407F_serviceErrorString127[2];
-    uint8_t x6000_digitalInputs_sub0;
-    uint8_t x6000_digitalInputs[OD_CNT_ARR_6000];
-    uint8_t x6200_digitalInputs_sub0;
-    uint8_t x6200_digitalInputs[OD_CNT_ARR_6200];
+    uint8_t x6000_digitalInputs1_sub0;
+    uint8_t x6000_digitalInputs1[OD_CNT_ARR_6000];
+    uint8_t x6200_digitalInputs2_sub0;
+    uint8_t x6200_digitalInputs2[OD_CNT_ARR_6200];
     uint8_t x6401_analogInputs_sub0;
     int16_t x6401_analogInputs[OD_CNT_ARR_6401];
 } OD_RAM_t;
@@ -824,8 +824,8 @@ extern OD_ATTR_OD OD_t *OD;
 #define OD_ENTRY_H407D_serviceErrorString125 &OD->list[181]
 #define OD_ENTRY_H407E_serviceErrorString126 &OD->list[182]
 #define OD_ENTRY_H407F_serviceErrorString127 &OD->list[183]
-#define OD_ENTRY_H6000_digitalInputs &OD->list[184]
-#define OD_ENTRY_H6200_digitalInputs &OD->list[185]
+#define OD_ENTRY_H6000_digitalInputs1 &OD->list[184]
+#define OD_ENTRY_H6200_digitalInputs2 &OD->list[185]
 #define OD_ENTRY_H6401_analogInputs &OD->list[186]
 
 
