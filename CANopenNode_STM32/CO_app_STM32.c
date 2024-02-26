@@ -215,10 +215,11 @@ canopen_app_process() {
 
         if (reset_status == CO_RESET_COMM) {
             /* delete objects from memory */
+        	HAL_TIM_Base_Stop_IT(canopenNodeSTM32->timerHandle);
             CO_CANsetConfigurationMode((void*)canopenNodeSTM32);
             CO_delete(CO);
             log_printf("CANopenNode Reset Communication request\n");
-            canopen_app_resetCommunication(); // Reset Communication routine
+            canopen_app_init(canopenNodeSTM32); // Reset Communication routine
         } else if (reset_status == CO_RESET_APP) {
             log_printf("CANopenNode Device Reset\n");
             HAL_NVIC_SystemReset(); // Reset the STM32 Microcontroller
