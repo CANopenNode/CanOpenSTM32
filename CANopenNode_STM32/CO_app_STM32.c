@@ -163,7 +163,7 @@ canopen_app_resetCommunication() {
     }
 
     err = CO_CANopenInitPDO(CO, CO->em, OD, canopenNodeSTM32->activeNodeID, &errInfo);
-    if (err != CO_ERROR_NO) {
+    if (err != CO_ERROR_NO && err != CO_ERROR_NODE_ID_UNCONFIGURED_LSS) {
         if (err == CO_ERROR_OD_PARAMETERS) {
             log_printf("Error: Object Dictionary entry 0x%X\n", errInfo);
         } else {
