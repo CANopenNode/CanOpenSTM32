@@ -29,7 +29,11 @@
 #include "main.h"
 #include <stdio.h>
 
+#ifdef USE_CO_STORAGE_FLASH
+#include "CO_storageFlash.h"
+#else
 #include "CO_storageBlank.h"
+#endif
 #include "OD.h"
 
 CANopenNodeSTM32*
@@ -54,6 +58,7 @@ CO_t* CO = NULL; /* CANopen object */
 // Global variables
 uint32_t time_old, time_current;
 CO_ReturnError_t err;
+uint32_t storageInitError = 0;
 
 /* This function will basically setup the CANopen node */
 int
@@ -68,9 +73,13 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
                                                    .len = sizeof(OD_PERSIST_COMM),
                                                    .subIndexOD = 2,
                                                    .attr = CO_storage_cmd | CO_storage_restore,
+#ifdef USE_CO_STORAGE_FLASH
+                                                   .reservedSpace = SIZE_OF_PAGE,
+                                                   .offset = 0}};
+#else
                                                    .addrNV = NULL}};
+#endif
     uint8_t storageEntriesCount = sizeof(storageEntries) / sizeof(storageEntries[0]);
-    uint32_t storageInitError = 0;
 #endif
 
     /* Allocate memory */
@@ -96,9 +105,14 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
     canopenNodeSTM32->canOpenStack = CO;
 
 #if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
+#ifdef USE_CO_STORAGE_FLASH
+    err = CO_storageFlash_init(&storage, CO->CANmodule, OD_ENTRY_H1010_storeParameters, OD_ENTRY_H1011_restoreDefaultParameters, storageEntries, storageEntriesCount, &storageInitError);
+#else
+
     err = CO_storageBlank_init(&storage, CO->CANmodule, OD_ENTRY_H1010_storeParameters,
                                OD_ENTRY_H1011_restoreDefaultParameters, storageEntries, storageEntriesCount,
                                &storageInitError);
+#endif
 
     if (err != CO_ERROR_NO && err != CO_ERROR_DATA_CORRUPT) {
         log_printf("Error: Storage %lu\n", storageInitError);

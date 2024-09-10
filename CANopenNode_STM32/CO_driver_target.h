@@ -50,7 +50,13 @@
 #error This STM32 Do not support CAN or FDCAN
 #endif
 
+#ifdef USE_CO_STORAGE_FLASH
+#define CO_CONFIG_STORAGE CO_CONFIG_STORAGE_ENABLE
+#define CO_CONFIG_CRC16 CO_CONFIG_CRC16_ENABLE
+#else
 #undef CO_CONFIG_STORAGE_ENABLE // We don't need Storage option, implement based on your use case and remove this line from here
+#endif
+
 
 #ifdef CO_DRIVER_CUSTOM
 #include "CO_driver_custom.h"
@@ -139,6 +145,11 @@ typedef struct {
     uint8_t attr;
     /* Additional variables (target specific) */
     void* addrNV;
+#ifdef USE_CO_STORAGE_FLASH
+    uint16_t offset;
+    uint16_t reservedSpace;
+    uint16_t crc;
+#endif
 } CO_storage_entry_t;
 
 /* (un)lock critical section in CO_CANsend() */
