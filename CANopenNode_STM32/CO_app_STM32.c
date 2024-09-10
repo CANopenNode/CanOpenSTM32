@@ -90,7 +90,7 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
         log_printf("Error: Can't allocate memory\n");
         return 1;
     } else {
-        log_printf("Allocated %u bytes for CANopen objects\n", heapMemoryUsed);
+        log_printf("Allocated %lu bytes for CANopen objects\n", heapMemoryUsed);
     }
 
     canopenNodeSTM32->canOpenStack = CO;
@@ -101,7 +101,7 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
                                &storageInitError);
 
     if (err != CO_ERROR_NO && err != CO_ERROR_DATA_CORRUPT) {
-        log_printf("Error: Storage %d\n", storageInitError);
+        log_printf("Error: Storage %lu\n", storageInitError);
         return 2;
     }
 #endif
@@ -155,7 +155,7 @@ canopen_app_resetCommunication() {
                          canopenNodeSTM32->activeNodeID, &errInfo);
     if (err != CO_ERROR_NO && err != CO_ERROR_NODE_ID_UNCONFIGURED_LSS) {
         if (err == CO_ERROR_OD_PARAMETERS) {
-            log_printf("Error: Object Dictionary entry 0x%X\n", errInfo);
+            log_printf("Error: Object Dictionary entry 0x%lX\n", errInfo);
         } else {
             log_printf("Error: CANopen initialization failed: %d\n", err);
         }
@@ -165,7 +165,7 @@ canopen_app_resetCommunication() {
     err = CO_CANopenInitPDO(CO, CO->em, OD, canopenNodeSTM32->activeNodeID, &errInfo);
     if (err != CO_ERROR_NO) {
         if (err == CO_ERROR_OD_PARAMETERS) {
-            log_printf("Error: Object Dictionary entry 0x%X\n", errInfo);
+            log_printf("Error: Object Dictionary entry 0x%lX\n", errInfo);
         } else {
             log_printf("Error: PDO initialization failed: %d\n", err);
         }
