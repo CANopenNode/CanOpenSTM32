@@ -35,16 +35,30 @@
 CANopenNodeSTM32*
     canopenNodeSTM32; // It will be set by canopen_app_init and will be used across app to get access to CANOpen objects
 
+/* Printf function of CanOpen app */
+#define log_printf(macropar_message, ...) printf(macropar_message, ##__VA_ARGS__)
 
 /* default values for CO_CANopenInit() */
+#ifndef NMT_CONTROL
 #define NMT_CONTROL                                                                                                    \
     CO_NMT_STARTUP_TO_OPERATIONAL                                                                                      \
     | CO_NMT_ERR_ON_ERR_REG | CO_ERR_REG_GENERIC_ERR | CO_ERR_REG_COMMUNICATION
+#endif
+#ifndef FIRST_HB_TIME
 #define FIRST_HB_TIME        500
+#endif
+#ifndef SDO_SRV_TIMEOUT_TIME
 #define SDO_SRV_TIMEOUT_TIME 1000
+#endif
+#ifndef SDO_CLI_TIMEOUT_TIME
 #define SDO_CLI_TIMEOUT_TIME 500
+#endif
+#ifndef SDO_CLI_BLOCK
 #define SDO_CLI_BLOCK        false
+#endif
+#ifndef OD_STATUS_BITS
 #define OD_STATUS_BITS       NULL
+#endif
 
 /* Global variables and objects */
 CO_t* CO = NULL; /* CANopen object */
@@ -61,8 +75,8 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
     canopenNodeSTM32 = _canopenNodeSTM32;
 
 #if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
-    CO_storage_t storage;
-    CO_storage_entry_t storageEntries[] = {{.addr = &OD_PERSIST_COMM,
+    static CO_storage_t storage;
+    static CO_storage_entry_t storageEntries[] = {{.addr = &OD_PERSIST_COMM,
                                             .len = sizeof(OD_PERSIST_COMM),
                                             .subIndexOD = 2,
                                             .attr = CO_storage_cmd | CO_storage_restore,
@@ -88,8 +102,7 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
         log_printf("Error: Can't allocate memory\n");
         return 1;
     } else {
-
-        log_printf("Allocated %lu bytes for CANopen objects\n", (unsigned long) heapMemoryUsed);
+        log_printf("Allocated %lu bytes for CANopen objects\n", heapMemoryUsed);
     }
 
     canopenNodeSTM32->canOpenStack = CO;
@@ -154,8 +167,7 @@ canopen_app_resetCommunication() {
                          canopenNodeSTM32->activeNodeID, &errInfo);
     if (err != CO_ERROR_NO && err != CO_ERROR_NODE_ID_UNCONFIGURED_LSS) {
         if (err == CO_ERROR_OD_PARAMETERS) {
-
-            log_printf("Error: Object Dictionary entry 0x%lX\n", (unsigned long) errInfo);
+            log_printf("Error: Object Dictionary entry 0x%lX\n", errInfo);
         } else {
             log_printf("Error: CANopen initialization failed: %d\n", err);
         }
@@ -165,7 +177,7 @@ canopen_app_resetCommunication() {
     err = CO_CANopenInitPDO(CO, CO->em, OD, canopenNodeSTM32->activeNodeID, &errInfo);
     if (err != CO_ERROR_NO) {
         if (err == CO_ERROR_OD_PARAMETERS) {
-            log_printf("Error: Object Dictionary entry 0x%lX\n", (unsigned long) errInfo);
+            log_printf("Error: Object Dictionary entry 0x%lX\n", errInfo);
         } else {
             log_printf("Error: PDO initialization failed: %d\n", err);
         }
@@ -215,10 +227,11 @@ canopen_app_process() {
 
         if (reset_status == CO_RESET_COMM) {
             /* delete objects from memory */
+        	HAL_TIM_Base_Stop_IT(canopenNodeSTM32->timerHandle);
             CO_CANsetConfigurationMode((void*)canopenNodeSTM32);
             CO_delete(CO);
             log_printf("CANopenNode Reset Communication request\n");
-            canopen_app_resetCommunication(); // Reset Communication routine
+            canopen_app_init(canopenNodeSTM32); // Reset Communication routine
         } else if (reset_status == CO_RESET_APP) {
             log_printf("CANopenNode Device Reset\n");
             HAL_NVIC_SystemReset(); // Reset the STM32 Microcontroller
@@ -249,4 +262,3 @@ canopen_app_interrupt(void) {
     }
     CO_UNLOCK_OD(CO->CANmodule);
 }
-
