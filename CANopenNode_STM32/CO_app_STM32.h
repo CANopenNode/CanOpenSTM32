@@ -56,6 +56,7 @@ typedef struct {
 
 // In order to use CANOpenSTM32, you'll have it have a canopenNodeSTM32 structure somewhere in your codes, it is usually residing in CO_app_STM32.c
 extern CANopenNodeSTM32* canopenNodeSTM32;
+extern CO_t* CO;
 
 
 /* This function will initialize the required CANOpen Stack objects, allocate the memory and prepare stack for communication reset*/
@@ -66,7 +67,7 @@ int canopen_app_resetCommunication(void);
 void canopen_app_process(void);
 /* Thread function executes in constant intervals, this function can be called from FreeRTOS tasks or Timers ********/
 void canopen_app_interrupt(void);
-
+void CO_InitCallbacks(void);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

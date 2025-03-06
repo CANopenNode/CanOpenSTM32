@@ -47,6 +47,9 @@
 
 #undef CO_CONFIG_STORAGE_ENABLE // We don't need Storage option, implement based on your use case and remove this line from here
 
+#define CO_CONFIG_GLOBAL_FLAG_CALLBACK_PRE (0x1000)				// If Callback for SDO needed
+
+
 #ifdef CO_DRIVER_CUSTOM
 #include "CO_driver_custom.h"
 #endif

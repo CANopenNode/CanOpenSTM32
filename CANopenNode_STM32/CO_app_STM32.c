@@ -201,6 +201,10 @@ canopen_app_resetCommunication() {
         log_printf("CANopenNode - Node-id not initialized\n");
     }
 
+#if (CO_CONFIG_SDO_SRV) & CO_CONFIG_FLAG_CALLBACK_PRE
+	CO_InitCallbacks();
+#endif
+
     /* start CAN */
     CO_CANsetNormalMode(CO->CANmodule);
 
