@@ -312,9 +312,9 @@ prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
     /* Check if TX FIFO is ready to accept more messages */
     if (HAL_CAN_GetTxMailboxesFreeLevel(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle) > 0) {
         /*
-    		 * RTR flag is part of identifier value
-    		 * hence it needs to be properly decoded
-    		 */
+         * RTR flag is part of identifier value
+         * hence it needs to be properly decoded
+         */
         tx_hdr.ExtId = 0u;
         tx_hdr.IDE = CAN_ID_STD;
         tx_hdr.DLC = buffer->DLC;
@@ -633,9 +633,9 @@ HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t BufferI
                     buffer->bufferFull = false;
                     CANModule_local->CANtxCount--;
                     CANModule_local->bufferInhibitFlag = buffer->syncFlag;
-                }
-                else
+                } else {
                     break;  // if we could not send the message, break out of the loop (the tx buffers are full)
+		}
             }
         }
         CO_UNLOCK_CAN_SEND(CANModule_local);
