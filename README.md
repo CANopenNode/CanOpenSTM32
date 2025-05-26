@@ -147,7 +147,9 @@ void canopen_task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	  //Reflect CANopenStatus on LEDs
+    //Reflect CANopenStatus on LEDs
+    //Review the hardware configuration to control the leds. Test is for STM32H735G-DK board
+    //that turns on the LED when pin is set to low (ergo negation)
     HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, !canOpenNodeSTM32.outStatusLEDGreen);
     HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, !canOpenNodeSTM32.outStatusLEDRed);
     canopen_app_process();
