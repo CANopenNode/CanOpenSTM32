@@ -355,8 +355,11 @@ CO_CANsend(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
     if (prv_send_can_message(CANmodule, buffer)) {
         CANmodule->bufferInhibitFlag = buffer->syncFlag;
     } else {
-        buffer->bufferFull = true;
-        CANmodule->CANtxCount++;
+        /* Only increment count if buffer wasn't already full */
+        if (!buffer->bufferFull) {
+            buffer->bufferFull = true;
+            CANmodule->CANtxCount++;
+        }
     }
     CO_UNLOCK_CAN_SEND(CANmodule);
 
@@ -635,7 +638,7 @@ HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t BufferI
                     CANModule_local->bufferInhibitFlag = buffer->syncFlag;
                 } else {
                     break;  // if we could not send the message, break out of the loop (the tx buffers are full)
-		}
+                }
             }
         }
         CO_UNLOCK_CAN_SEND(CANModule_local);
