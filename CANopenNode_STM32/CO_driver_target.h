@@ -35,6 +35,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef USE_FREERTOS_LOCKING
+#include "FreeRTOS.h"
+#include "task.h"
+#endif
+
 // Determining the CANOpen Driver
 
 #if defined(FDCAN) || defined(FDCAN1) || defined(FDCAN2) || defined(FDCAN3)
@@ -45,7 +50,13 @@
 #error This STM32 Do not support CAN or FDCAN
 #endif
 
+#ifdef USE_CO_STORAGE_FLASH
+#define CO_CONFIG_STORAGE CO_CONFIG_STORAGE_ENABLE
+#define CO_CONFIG_CRC16 CO_CONFIG_CRC16_ENABLE
+#else
 #undef CO_CONFIG_STORAGE_ENABLE // We don't need Storage option, implement based on your use case and remove this line from here
+#endif
+
 
 #ifdef CO_DRIVER_CUSTOM
 #include "CO_driver_custom.h"
@@ -134,9 +145,60 @@ typedef struct {
     uint8_t attr;
     /* Additional variables (target specific) */
     void* addrNV;
+#ifdef USE_CO_STORAGE_FLASH
+    uint16_t offset;
+    uint16_t reservedSpace;
+    uint16_t crc;
+#endif
 } CO_storage_entry_t;
 
 /* (un)lock critical section in CO_CANsend() */
+#ifdef USE_FREERTOS_LOCKING
+
+// NOTE: valid for STM32F3XX. Not tested on other MCUs
+// This works as long as you don't have interrupts pre-empting each other, which call the CO_LOCK_* macros below!
+#define CO_VECTACTIVE_MASK (0xFFUL)
+#define CO_IS_IRQ() ((portNVIC_INT_CTRL_REG & CO_VECTACTIVE_MASK) != 0)
+
+#define CO_ENTER_CRITICAL_SECTION()                                                                                    \
+  do                                                                                                                   \
+  {                                                                                                                    \
+    if (CO_IS_IRQ())                                                                                                   \
+    {                                                                                                                  \
+      taskENTER_CRITICAL_FROM_ISR();                                                                                   \
+    }                                                                                                                  \
+    else                                                                                                               \
+    {                                                                                                                  \
+      taskENTER_CRITICAL();                                                                                            \
+    }                                                                                                                  \
+  } while (0)
+
+#define CO_EXIT_CRITICAL_SECTION()                                                                                     \
+  do                                                                                                                   \
+  {                                                                                                                    \
+    if (CO_IS_IRQ())                                                                                                   \
+    {                                                                                                                  \
+      taskEXIT_CRITICAL_FROM_ISR(0);                                                                                   \
+    }                                                                                                                  \
+    else                                                                                                               \
+    {                                                                                                                  \
+      taskEXIT_CRITICAL();                                                                                             \
+    }                                                                                                                  \
+  } while (0)
+
+/* (un)lock critical section in CO_CANsend() */
+#define CO_LOCK_CAN_SEND(CAN_MODULE) CO_ENTER_CRITICAL_SECTION()
+#define CO_UNLOCK_CAN_SEND(CAN_MODULE) CO_EXIT_CRITICAL_SECTION()
+
+/* (un)lock critical section when accessing Object Dictionary */
+#define CO_LOCK_OD(CAN_MODULE) CO_ENTER_CRITICAL_SECTION()
+#define CO_UNLOCK_OD(CAN_MODULE) CO_EXIT_CRITICAL_SECTION()
+
+/* (un)lock critical section in CO_errorReport() or CO_errorReset() */
+#define CO_LOCK_EMCY(CAN_MODULE) CO_ENTER_CRITICAL_SECTION()
+#define CO_UNLOCK_EMCY(CAN_MODULE) CO_EXIT_CRITICAL_SECTION()
+
+#else
 // Why disabling the whole Interrupt
 #define CO_LOCK_CAN_SEND(CAN_MODULE)                                                                                   \
     do {                                                                                                               \
@@ -160,6 +222,7 @@ typedef struct {
         __disable_irq();                                                                                               \
     } while (0)
 #define CO_UNLOCK_OD(CAN_MODULE) __set_PRIMASK((CAN_MODULE)->primask_od)
+#endif
 
 /* Synchronization between CAN receive and message processing threads. */
 #define CO_MemoryBarrier()
