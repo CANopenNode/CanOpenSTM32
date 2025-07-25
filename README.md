@@ -71,7 +71,7 @@ To get a good grasp of CANOpenNode Stack and CANOpenNodeSTM32 stack, you can ref
 - Configure CAN/FDCAN to your desired bitrate and map it to relevant tx/rx pins - Make sure yo activate Auto Bus recovery (bxCAN) / protocol exception handling (FDCAN)
 - Activate the RX and TX interrupt on the CAN peripheral
 - Enable a timer for a 1ms overflow interrupt and activate interrupt for that timer
-- Copy or clone `CANopenNode` and `CANopenNodeSTM32` into your project directory 
+- Copy or clone `CANopenNode` and `CANopenNode_STM32` into your project directory 
 - Add `CANopenNode` and `CANopenNodeSTM32` to Source locations in `Project Properties -> C/C++ General -> Paths and Symbols -> Source Locations`
   - add an exclusion filter for `example/` folder for `CANopenNode` folder
 - Add `CANOpenNode` and `CANopenNodeSTM32` to `Project Properties -> C/C++ General -> Paths and Symbols -> Includes` under `GNU C` items
