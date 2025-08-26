@@ -312,9 +312,9 @@ prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
     /* Check if TX FIFO is ready to accept more messages */
     if (HAL_CAN_GetTxMailboxesFreeLevel(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle) > 0) {
         /*
-    		 * RTR flag is part of identifier value
-    		 * hence it needs to be properly decoded
-    		 */
+         * RTR flag is part of identifier value
+         * hence it needs to be properly decoded
+         */
         tx_hdr.ExtId = 0u;
         tx_hdr.IDE = CAN_ID_STD;
         tx_hdr.DLC = buffer->DLC;
@@ -355,8 +355,11 @@ CO_CANsend(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
     if (prv_send_can_message(CANmodule, buffer)) {
         CANmodule->bufferInhibitFlag = buffer->syncFlag;
     } else {
-        buffer->bufferFull = true;
-        CANmodule->CANtxCount++;
+        /* Only increment count if buffer wasn't already full */
+        if (!buffer->bufferFull) {
+            buffer->bufferFull = true;
+            CANmodule->CANtxCount++;
+        }
     }
     CO_UNLOCK_CAN_SEND(CANmodule);
 
@@ -632,12 +635,10 @@ HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t BufferI
                     buffer->bufferFull = false;
                     CANModule_local->CANtxCount--;
                     CANModule_local->bufferInhibitFlag = buffer->syncFlag;
+                } else {
+                    break;  // if we could not send the message, break out of the loop (the tx buffers are full)
                 }
             }
-        }
-        /* Clear counter if no more messages */
-        if (i == 0U) {
-            CANModule_local->CANtxCount = 0U;
         }
         CO_UNLOCK_CAN_SEND(CANModule_local);
     }
@@ -695,11 +696,9 @@ CO_CANinterrupt_TX(CO_CANmodule_t* CANmodule, uint32_t MailboxNumber) {
                     CANmodule->CANtxCount--;
                     CANmodule->bufferInhibitFlag = buffer->syncFlag;
                 }
+                else
+                    break;  // if we could not send the message, break out of the loop (the tx buffers are full)
             }
-        }
-        /* Clear counter if no more messages */
-        if (i == 0U) {
-            CANmodule->CANtxCount = 0U;
         }
         CO_UNLOCK_CAN_SEND(CANmodule);
     }
