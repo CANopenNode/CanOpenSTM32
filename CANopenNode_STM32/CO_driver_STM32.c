@@ -130,7 +130,7 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
     }
 #else
     CAN_FilterTypeDef FilterConfig;
-#if defined(CAN)
+#if !defined(CAN2)
     FilterConfig.FilterBank = 0;
 #else
     if (((CAN_HandleTypeDef*)((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle)->Instance == CAN1) {
