@@ -10,10 +10,10 @@ You can directly open projects in the STM32CubeIDE and run examples on the relev
 
 ## Repository directories
 
-- `.\CANopenNode` : Includes the stack implemenation, for most of usecases you don't need to touch these files as they are constant between all the variations and ports (i.e. Linux, PIC, STM32 and etc.)
-- `.\CANopenNodeSTM32` : Includes the implementation of low-level driver for STM32 microcontrollers, support both CAN based controllers and FDCAN without any changes. It automatically detect the controller type and activate the relevant calls to STM32 HAL libraries
+- `.\CANopenNode` : Includes the stack implementation, for most of use cases you don't need to touch these files as they are constant between all the variations and ports (i.e. Linux, PIC, STM32 and etc.)
+- `.\CANopenNodeSTM32` : Includes the implementation of low-level driver for STM32 microcontrollers, support both CAN based controllers and FDCAN without any changes. It automatically detects the controller type and activate the relevant calls to STM32 HAL libraries
 - `.\examples` : It include many examples on various boards including STM32F4-Discovery, STM32G0C1 Evaluation board, STM32F076 Nucleo Board, STM32H735G-Development Kit.
-- `.\Legacy` : It include an older version of CANOpenSTM32 implementation, specifically made for FDCAN controllers, however it was stable and include the FreeRTOS implementation. 
+- `.\Legacy` : It includes an older version of CANOpenSTM32 implementation, specifically made for FDCAN controllers, however it was stable and includes the FreeRTOS implementation. 
 
 ## Supported boards and MCUs
  
@@ -46,9 +46,9 @@ It also includes built-in programmer and virtual COM port for communication, hen
 
 ### [NUCLEO-F303ZE](https://www.st.com/en/evaluation-tools/nucleo-f303ze.html) / [NUCLEO-F072RB](https://www.st.com/en/evaluation-tools/nucleo-f072rb.html) + [MAX33040ESHLD](https://www.digikey.ie/en/products/detail/analog-devices-inc-maxim-integrated/MAX33040ESHLD/13558019)
 
-Nucleo includes an arduino compatible headers which can be used to add MAX33040ESHLD to it and this bundle provide  the minimum required components to establish a CAN communication and CanOpenNode on top of that.
+Nucleo includes an arduino-compatible headers which can be used to add MAX33040ESHLD to it and this bundle provide the minimum required components to establish a CAN communication and CanOpenNode on top of that.
 
-This project is tied to the CubeMX configuration, so it is up to the user to provide compatible configuration using CubeMX (bitrate, interrupt activiation and etc).
+This project is tied to the CubeMX configuration, so it is up to the user to provide compatible configuration using CubeMX (bitrate, interrupt activation and etc).
 
 
 ### [STM32F4DISCOVERY](https://www.st.com/en/evaluation-tools/stm32f4discovery.html) + Any CAN Bus Physical Layer Module
@@ -68,7 +68,7 @@ To get a good grasp of CANOpenNode Stack and CANOpenNodeSTM32 stack, you can ref
 
 ## Porting to other STM32 microcontrollers checklist :
 - Create a new project in STM32CubeMXIDE
-- Configure CAN/FDCAN to your desired bitrate and map it to relevant tx/rx pins - Make sure yo activate Auto Bus recovery (bxCAN) / protocol exception handling (FDCAN)
+- Configure CAN/FDCAN to your desired bitrate and map it to relevant tx/rx pins - Make sure you activate Auto Bus recovery (bxCAN) / protocol exception handling (FDCAN)
 - Activate the RX and TX interrupt on the CAN peripheral
 - Enable a timer for a 1ms overflow interrupt and activate interrupt for that timer
 - Copy or clone `CANopenNode` and `CANopenNodeSTM32` into your project directory 
@@ -82,7 +82,7 @@ To get a good grasp of CANOpenNode Stack and CANOpenNodeSTM32 stack, you can ref
     #include "CO_app_STM32.h"
     /* USER CODE END Includes */
   ```
-  - Make sure that you have the `HAL_TIM_PeriodElapsedCallback` function implmented with a call to `canopen_app_interrupt`.
+  - Make sure that you have the `HAL_TIM_PeriodElapsedCallback` function implemented with a call to `canopen_app_interrupt`.
 
 ```c
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -105,8 +105,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 - Now based on your application, you'll take one of the following approaches :
 
-  ### In Baremetal application
-- In your main.c, add following codes to your USER CODE BEGIN 2
+  ### In Bare-metal application
+- In your main.c, add following code to your USER CODE BEGIN 2
   ```c
     /* USER CODE BEGIN 2 */
     CANopenNodeSTM32 canOpenNodeSTM32;
@@ -119,7 +119,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     /* USER CODE END 2 */
   ```
 
-- In your main.c, add following codes to your USER CODE BEGIN WHILE
+- In your main.c, add following code to your USER CODE BEGIN WHILE
   ```c
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -148,7 +148,7 @@ void canopen_task(void *argument)
   for(;;)
   {
     //Reflect CANopenStatus on LEDs
-    //Review the hardware configuration to control the leds. Test is for STM32H735G-DK board
+    //Review the hardware configuration to control the LEDs. Test is for STM32H735G-DK board
     //that turns on the LED when pin is set to low (ergo negation)
     HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, !canOpenNodeSTM32.outStatusLEDGreen);
     HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, !canOpenNodeSTM32.outStatusLEDRed);
@@ -166,7 +166,7 @@ void canopen_task(void *argument)
 
 ### Known limitations : 
 
-- We have never tested the multi CANOpen on a single STM32 device, but the the original CANOpenNode has the capability to use multi modules, which you can develop yourself.
+- We have never tested the multiple CANOpen on a single STM32 device, but the original CANOpenNode has the capability to use multi modules, which you can develop yourself.
 
 ### Clone or update
 
@@ -188,7 +188,7 @@ git submodule update --init --recursive
 
 ## License
 
-This file is part of CANopenNode, an opensource CANopen Stack. Project home page is https://github.com/CANopenNode/CANopenNode. For more information on CANopen see http://www.can-cia.org/.
+This file is part of CANopenNode, an open-source CANopen Stack. Project home page is https://github.com/CANopenNode/CANopenNode. For more information on CANopen see http://www.can-cia.org/.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 
