@@ -264,8 +264,8 @@ prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
         tx_hdr.Identifier = buffer->ident & CANID_MASK;
         tx_hdr.TxFrameType = (buffer->ident & FLAG_RTR) ? FDCAN_REMOTE_FRAME : FDCAN_DATA_FRAME;
         tx_hdr.IdType = FDCAN_STANDARD_ID;
-        tx_hdr.FDFormat = FDCAN_CLASSIC_CAN;
-        tx_hdr.BitRateSwitch = FDCAN_BRS_OFF;
+        tx_hdr.FDFormat = FDCAN_FD_CAN;
+        tx_hdr.BitRateSwitch = FDCAN_BRS_ON;
         tx_hdr.MessageMarker = 0;
         tx_hdr.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
         tx_hdr.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
