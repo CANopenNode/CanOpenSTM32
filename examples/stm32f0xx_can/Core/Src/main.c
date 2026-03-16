@@ -113,8 +113,11 @@ int main(void)
   canOpenNodeSTM32.CANHandle = &hcan;
   canOpenNodeSTM32.HWInitFunction = MX_CAN_Init;
   canOpenNodeSTM32.timerHandle = &htim17;
-  canOpenNodeSTM32.desiredNodeID = 24;
-  canOpenNodeSTM32.baudrate = 1000;
+  canOpenNodeSTM32.desiredNodeID = 32;
+  // Bit timing info for this project : http://www.bittiming.can-wiki.info/
+  // CAN Input Clock : 48MHz   - Target CAN Bit rate: 125
+  // Pre-scaler 24 , Seg1 : 13,  Seg2: 2
+  canOpenNodeSTM32.baudrate = 125;
   canopen_app_init(&canOpenNodeSTM32);
   /* USER CODE END 2 */
 

@@ -68,7 +68,7 @@ To get a good grasp of CANOpenNode Stack and CANOpenNodeSTM32 stack, you can ref
 
 ## Porting to other STM32 microcontrollers checklist :
 - Create a new project in STM32CubeMXIDE
-- Configure CAN/FDCAN to your desired bitrate and map it to relevant tx/rx pins - Make sure you activate Auto Bus recovery (bxCAN) / protocol exception handling (FDCAN)
+- Configure CAN/FDCAN to your desired bitrate and map it to relevant tx/rx pins - Make sure you activate Auto Bus recovery (bxCAN) / protocol exception handling (FDCAN) - You can use [this](http://www.bittiming.can-wiki.info/) tool to calculate bitrate.
 - Activate the RX and TX interrupt on the CAN peripheral
 - Enable a timer for a 1ms overflow interrupt and activate interrupt for that timer
 - Copy or clone `CANopenNode` and `CANopenNodeSTM32` into your project directory 
