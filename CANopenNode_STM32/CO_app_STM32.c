@@ -221,6 +221,18 @@ canopen_app_process() {
     time_current = HAL_GetTick();
 
     if ((time_current - time_old) > 0) { // Make sure more than 1ms elapsed
+
+#ifdef CANFIFO
+        /* ✅ 1. Alle RX Messages aus Ringbuffer verarbeiten */
+        CO_CANrxMsg_t msg;
+
+        while (rb_pop(&msg))
+        {
+            prv_read_can_received_msg_logic(&msg);
+        }
+#endif
+
+
         /* CANopen process */
         CO_NMT_reset_cmd_t reset_status;
         uint32_t timeDifference_us = (time_current - time_old) * 1000;

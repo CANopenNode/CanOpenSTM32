@@ -35,7 +35,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// Determining the CANOpen Driver
 
 #if defined(FDCAN) || defined(FDCAN1) || defined(FDCAN2) || defined(FDCAN3)
 #define CO_STM32_FDCAN_Driver 1
@@ -178,6 +177,17 @@ typedef struct {
         rxNew = NULL;                                                                                                  \
     } while (0)
 
+
+
+// Determining the CANOpen Driver
+#ifdef CANFIFO
+static inline int rb_pop(CO_CANrxMsg_t *msg);
+#ifdef CO_STM32_FDCAN_Driver
+static void prv_read_can_received_msg(FDCAN_HandleTypeDef *hfdcan, uint32_t fifo, uint32_t fifo_isrs);
+#else
+static void prv_read_can_received_msg(CAN_HandleTypeDef* hcan, uint32_t fifo, uint32_t fifo_isrs);
+#endif
+#endif
 
 #ifdef __cplusplus
 }
