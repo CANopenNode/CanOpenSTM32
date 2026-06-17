@@ -138,14 +138,27 @@ typedef struct {
     void* addrNV;
 } CO_storage_entry_t;
 
-/* (un)lock critical section in CO_CANsend() */
-// Why disabling the whole Interrupt
-#define CO_LOCK_CAN_SEND(CAN_MODULE)                                                                                   \
-    do {                                                                                                               \
-        (CAN_MODULE)->primask_send = __get_PRIMASK();                                                                  \
-        __disable_irq();                                                                                               \
-    } while (0)
-#define CO_UNLOCK_CAN_SEND(CAN_MODULE) __set_PRIMASK((CAN_MODULE)->primask_send)
+	/* (un)lock critical section in CO_CANsend() */
+	// Why disabling the whole Interrupt
+	#define CO_LOCK_CAN_SEND(CAN_MODULE)                                                                                   \
+		do {                                                                                                               \
+			(CAN_MODULE)->primask_send = __get_PRIMASK();                                                                  \
+			__disable_irq();                                                                                               \
+		} while (0)
+	#define CO_UNLOCK_CAN_SEND(CAN_MODULE) __set_PRIMASK((CAN_MODULE)->primask_send)
+
+
+	// CO_LOCK_GUARD is a alternative to CO_LOCK_CAN_SEND / CO_UNLOCK_CAN_SEND
+	// Here are the advantages of CO_LOCK_GUARD
+	// No risk of forgetting to unlock → the IRQ is always released automatically, even on return, break or errors
+	// Clean code → no separate LOCK / UNLOCK required
+	// Exception-safe → correct behaviour even in the event of early terminations
+	// Optionally PRIMASK-safe → the ori	ginal IRQ status is preserved
+	static volatile uint8_t irqLockActive = 0;
+	#define CO_LOCK_GUARD() \
+		for (uint32_t _primask = (__get_PRIMASK(), __disable_irq(), irqLockActive = 1, 0); \
+			 !_primask; \
+			 (__set_PRIMASK(_primask), irqLockActive = 0))
 
 /* (un)lock critical section in CO_errorReport() or CO_errorReset() */
 #define CO_LOCK_EMCY(CAN_MODULE)                                                                                       \

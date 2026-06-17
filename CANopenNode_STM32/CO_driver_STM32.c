@@ -37,10 +37,10 @@ static CO_CANmodule_t *CANModule_local = NULL; /* Local instance of global CAN m
 /* CAN masks for identifiers */
 #define CANID_MASK 0x07FF /*!< CAN standard ID mask */
 #define FLAG_RTR   0x8000 /*!< RTR flag, part of identifier */
-#define CANFIFO
 
+#define CANFIFO  // Use SW-FIFO for received messages
 #ifdef CANFIFO
-#define RX_BUFFER_SIZE 32   // muss 2^n sein (wichtig!)
+#define RX_BUFFER_SIZE 32   // must be 2^n (importent!)
 
 typedef struct {
 	CO_CANrxMsg_t msg;
@@ -57,6 +57,7 @@ static inline void rb_push(const CO_CANrxMsg_t *msg) {
 
 	if (next == tail) {
 		// 🔴 Buffer full → discard oldest element
+		CANModule_local->CANerrorStatus |= CO_CAN_ERRRX_OVERFLOW;
 		tail = (tail + 1) & (RX_BUFFER_SIZE - 1);
 	}
 
@@ -161,11 +162,19 @@ CO_ReturnError_t CO_CANmodule_init(CO_CANmodule_t *CANmodule, void *CANptr,
 	 */
 
 #ifdef CO_STM32_FDCAN_Driver
+#if ((CO_CONFIG_NODE_GUARDING)&CO_CONFIG_NODE_GUARDING_SLAVE_ENABLE) != 0
+	if (HAL_FDCAN_ConfigGlobalFilter(((CANopenNodeSTM32*) CANptr)->CANHandle,
+	FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_REJECT,
+	FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0) != HAL_OK) {
+		return CO_ERROR_ILLEGAL_ARGUMENT;
+	}
+#else
 	if (HAL_FDCAN_ConfigGlobalFilter(((CANopenNodeSTM32*) CANptr)->CANHandle,
 	FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_REJECT,
 	FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK) {
 		return CO_ERROR_ILLEGAL_ARGUMENT;
 	}
+#endif
 #else
     CAN_FilterTypeDef FilterConfig;
 #if defined(CAN)
@@ -347,6 +356,11 @@ static uint8_t prv_send_can_message(CO_CANmodule_t *CANmodule,
 		success = HAL_FDCAN_AddMessageToTxFifoQ(
 				((CANopenNodeSTM32*) CANmodule->CANptr)->CANHandle, &tx_hdr,
 				buffer->data) == HAL_OK;
+
+		if (!success) {
+		   CANmodule->CANerrorStatus |= CO_CAN_ERRTX_OVERFLOW;
+		}
+
 	}
 #else
     static CAN_TxHeaderTypeDef tx_hdr;
@@ -391,17 +405,19 @@ CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer) {
 	 *
 	 * Lock interrupts for atomic operation
 	 */
-	CO_LOCK_CAN_SEND(CANmodule);
-	if (prv_send_can_message(CANmodule, buffer)) {
-		CANmodule->bufferInhibitFlag = buffer->syncFlag;
-	} else {
-		/* Only increment count if buffer wasn't already full */
-		if (!buffer->bufferFull) {
-			buffer->bufferFull = true;
-			CANmodule->CANtxCount++;
+	//CO_LOCK_CAN_SEND(CANmodule);
+	CO_LOCK_GUARD(){
+		if (prv_send_can_message(CANmodule, buffer)) {
+			CANmodule->bufferInhibitFlag = buffer->syncFlag;
+		} else {
+			/* Only increment count if buffer wasn't already full */
+			if (!buffer->bufferFull) {
+				buffer->bufferFull = true;
+				CANmodule->CANtxCount++;
+			}
 		}
 	}
-	CO_UNLOCK_CAN_SEND(CANmodule);
+	//CO_UNLOCK_CAN_SEND(CANmodule);
 
 	return err;
 }
@@ -410,7 +426,8 @@ CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer) {
 void CO_CANclearPendingSyncPDOs(CO_CANmodule_t *CANmodule) {
 	uint32_t tpdoDeleted = 0U;
 
-	CO_LOCK_CAN_SEND(CANmodule);
+	// CO_LOCK_CAN_SEND(CANmodule);
+	CO_LOCK_GUARD(){
 	/* Abort message from CAN module, if there is synchronous TPDO.
 	 * Take special care with this functionality. */
 	if (/*messageIsOnCanBuffer && */CANmodule->bufferInhibitFlag) {
@@ -420,7 +437,8 @@ void CO_CANclearPendingSyncPDOs(CO_CANmodule_t *CANmodule) {
 	}
 	/* delete also pending synchronous TPDOs in TX buffers */
 	if (CANmodule->CANtxCount > 0) {
-		for (uint16_t i = CANmodule->txSize; i > 0U; --i) {
+//		for (uint16_t i = CANmodule->txSize; i > 0U; --i) {  // !!!! Out-of-bounds access! Max index = txSize - 1, but txArray[txSize] is being accessed here !!!!
+		for (uint16_t i = CANmodule->txSize; i-- > 0U;) {	// Bugfix Out-of-bounds access!
 			if (CANmodule->txArray[i].bufferFull) {
 				if (CANmodule->txArray[i].syncFlag) {
 					CANmodule->txArray[i].bufferFull = false;
@@ -430,7 +448,8 @@ void CO_CANclearPendingSyncPDOs(CO_CANmodule_t *CANmodule) {
 			}
 		}
 	}
-	CO_UNLOCK_CAN_SEND(CANmodule);
+	}
+	//CO_UNLOCK_CAN_SEND(CANmodule);
 	if (tpdoDeleted) {
 		CANmodule->CANerrorStatus |= CO_CAN_ERRTX_PDO_LATE;
 	}
@@ -489,7 +508,7 @@ void CO_CANmodule_process(CO_CANmodule_t *CANmodule) {
 
 		CANmodule->CANerrorStatus |= CO_CAN_ERRRX_OVERFLOW;
 
-		/* dele flags (write 1 to clear!) */
+		/* delete flags (write 1 to clear!) */
 		hfdcan->Instance->IR = (FDCAN_IR_RF0L | FDCAN_IR_RF1L);
 	}
 
@@ -698,8 +717,38 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 			msg.ident = rx_hdr.Identifier
 					| (rx_hdr.RxFrameType == FDCAN_REMOTE_FRAME ? FLAG_RTR : 0);
 
-			msg.dlc = (rx_hdr.DataLength & 0xF);
-
+			switch (rx_hdr.DataLength) {
+			case FDCAN_DLC_BYTES_0:
+				msg.dlc = 0;
+				break;
+			case FDCAN_DLC_BYTES_1:
+				msg.dlc = 1;
+				break;
+			case FDCAN_DLC_BYTES_2:
+				msg.dlc = 2;
+				break;
+			case FDCAN_DLC_BYTES_3:
+				msg.dlc = 3;
+				break;
+			case FDCAN_DLC_BYTES_4:
+				msg.dlc = 4;
+				break;
+			case FDCAN_DLC_BYTES_5:
+				msg.dlc = 5;
+				break;
+			case FDCAN_DLC_BYTES_6:
+				msg.dlc = 6;
+				break;
+			case FDCAN_DLC_BYTES_7:
+				msg.dlc = 7;
+				break;
+			case FDCAN_DLC_BYTES_8:
+				msg.dlc = 8;
+				break;
+			default:
+				msg.dlc = 0;
+				break; /* Invalid length when more than 8 */
+			}
 			// 👉 push to FIFO
 			rb_push(&msg);
 		}
@@ -730,14 +779,14 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
 	}
 
     /* 🔥 1. Check overflow */
-    if (FDCAN_RX_FIFO1 & FDCAN_IT_RX_FIFO1_MESSAGE_LOST)
+    if (RxFifo1ITs  & FDCAN_IT_RX_FIFO1_MESSAGE_LOST)
     {
         // ->ERROR:  minimum  one frame lost
         overflowCnt++;   //
     }
 
     /* 🔥 2. Warning: FIFO full */
-    if (RxFifo1ITs & FDCAN_RX_FIFO1)
+    if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_FULL)
     {
         fifoFullCnt++;   // optional Debug
     }
@@ -769,20 +818,23 @@ void HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef *hfdcan,
 		 * (unless you can guarantee no higher priority interrupt will try to access to FDCAN instance and send data,
 		 *  then no need to lock interrupts..)
 		 */
-		CO_LOCK_CAN_SEND(CANModule_local);
-		for (i = CANModule_local->txSize; i > 0U; --i, ++buffer) {
-			/* Try to send message */
-			if (buffer->bufferFull) {
-				if (prv_send_can_message(CANModule_local, buffer)) {
-					buffer->bufferFull = false;
-					CANModule_local->CANtxCount--;
-					CANModule_local->bufferInhibitFlag = buffer->syncFlag;
-				} else {
-					break; // if we could not send the message, break out of the loop (the tx buffers are full)
+		//CO_LOCK_CAN_SEND(CANModule_local);
+		CO_LOCK_GUARD(){
+			//for (i = CANModule_local->txSize; i > 0U; --i, ++buffer) {
+			for (i = CANModule_local->txSize; i > 0U && CANModule_local->CANtxCount > 0; --i, ++buffer){
+				/* Try to send message */
+				if (buffer->bufferFull) {
+					if (prv_send_can_message(CANModule_local, buffer)) {
+						buffer->bufferFull = false;
+						CANModule_local->CANtxCount--;
+						CANModule_local->bufferInhibitFlag = buffer->syncFlag;
+					} else {
+						break; // if we could not send the message, break out of the loop (the tx buffers are full)
+					}
 				}
 			}
 		}
-		CO_UNLOCK_CAN_SEND(CANModule_local);
+		//CO_UNLOCK_CAN_SEND(CANModule_local);
 	}
 }
 #else
