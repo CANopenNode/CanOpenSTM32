@@ -24,7 +24,6 @@
 extern "C" {
 #endif
 
-
 typedef struct {
     uint8_t
         desiredNodeID; /*This is the Node ID that you ask the CANOpen stack to assign to your device, although it might not always
@@ -68,8 +67,11 @@ void canopen_app_process(void);
 /* Thread function executes in constant intervals, this function can be called from FreeRTOS tasks or Timers ********/
 void canopen_app_interrupt(void);
 void CO_InitCallbacks(void);
+
+
 #ifdef CANFIFO
-prv_handle_can_received_msg(CO_CANrxMsg_t *rcvMsg);
+int rb_pop(CO_CANrxMsg_t *msg);
+void prv_handle_can_received_msg(CO_CANrxMsg_t *rcvMsg);
 #endif
 
 #ifdef __cplusplus

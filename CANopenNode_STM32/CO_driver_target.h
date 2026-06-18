@@ -148,20 +148,6 @@ typedef struct {
 	#define CO_UNLOCK_CAN_SEND(CAN_MODULE) __set_PRIMASK((CAN_MODULE)->primask_send)
 
 
-	// CO_LOCK_GUARD is a alternative to CO_LOCK_CAN_SEND / CO_UNLOCK_CAN_SEND
-	// Here are the advantages of CO_LOCK_GUARD
-	// No risk of forgetting to unlock → the IRQ is always released automatically, even on return, break or errors
-	// Clean code → no separate LOCK / UNLOCK required
-	// Exception-safe → correct behaviour even in the event of early terminations
-	// Optionally PRIMASK-safe → the ori	ginal IRQ status is preserved
-//	static volatile uint8_t irqLockActive = 0;
-//	#define CO_LOCK_GUARD() \
-//
-//#define CO_LOCK_GUARD() \
-//    for (uint32_t _primask = __get_PRIMASK(), _once = 1; _once; \
-//         __set_PRIMASK(_primask), _once = 0) \
-//        for (__disable_irq(); _once; )
-
 /* (un)lock critical section in CO_errorReport() or CO_errorReset() */
 #define CO_LOCK_EMCY(CAN_MODULE)                                                                                       \
     do {                                                                                                               \
@@ -193,16 +179,6 @@ typedef struct {
     } while (0)
 
 
-
-// Determining the CANOpen Driver
-#ifdef CANFIFO
-static inline int rb_pop(CO_CANrxMsg_t *msg);
-#ifdef CO_STM32_FDCAN_Driver
-static void prv_read_can_received_msg(FDCAN_HandleTypeDef *hfdcan, uint32_t fifo, uint32_t fifo_isrs);
-#else
-static void prv_read_can_received_msg(CAN_HandleTypeDef* hcan, uint32_t fifo, uint32_t fifo_isrs);
-#endif
-#endif
 
 #ifdef __cplusplus
 }

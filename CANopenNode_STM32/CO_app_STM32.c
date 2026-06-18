@@ -32,6 +32,11 @@
 #include "CO_storageBlank.h"
 #include "OD.h"
 
+#ifdef CANFIFO
+extern inline int rb_pop(CO_CANrxMsg_t *msg);
+extern void prv_handle_can_received_msg(CO_CANrxMsg_t *rcvMsg);
+#endif
+
 CANopenNodeSTM32*
     canopenNodeSTM32; // It will be set by canopen_app_init and will be used across app to get access to CANOpen objects
 
@@ -222,22 +227,20 @@ canopen_app_process() {
 
     if ((time_current - time_old) > 0) { // Make sure more than 1ms elapsed
 
-#ifdef CANFIFO
-        /* ✅ 1. Alle RX Messages aus Ringbuffer verarbeiten */
-        CO_CANrxMsg_t msg;
-
-        while (rb_pop(&msg))
-        {
-            prv_read_can_received_msg_logic(&msg);
-        }
-#endif
-
-
         /* CANopen process */
         CO_NMT_reset_cmd_t reset_status;
         uint32_t timeDifference_us = (time_current - time_old) * 1000;
         time_old = time_current;
         reset_status = CO_process(CO, false, timeDifference_us, NULL);
+
+#ifdef CANFIFO
+        /* ✅ 1. Alle RX Messages aus Ringbuffer verarbeiten */
+    	CO_CANrxMsg_t msg;
+    	while (rb_pop(&msg)) {
+    		prv_handle_can_received_msg(&msg);
+    	}
+#endif
+
         canopenNodeSTM32->outStatusLEDRed = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
         canopenNodeSTM32->outStatusLEDGreen = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
 

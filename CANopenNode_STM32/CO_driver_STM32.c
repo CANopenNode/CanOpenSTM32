@@ -28,6 +28,7 @@
  *
  * Implementation Author:               Tilen Majerle <tilen@majerle.eu>
  */
+
 #include "301/CO_driver.h"
 #include "CO_app_STM32.h"
 
@@ -38,7 +39,7 @@ static CO_CANmodule_t *CANModule_local = NULL; /* Local instance of global CAN m
 #define CANID_MASK 0x07FF /*!< CAN standard ID mask */
 #define FLAG_RTR   0x8000 /*!< RTR flag, part of identifier */
 
-// #define CANFIFO  // Use SW-FIFO for received messages
+
 #ifdef CANFIFO
 #define RX_BUFFER_SIZE 32   // must be 2^n (importent!)
 
@@ -67,7 +68,7 @@ static inline void rb_push(const CO_CANrxMsg_t *msg) {
 
 /******************************************************************************/
 
-static inline int rb_pop(CO_CANrxMsg_t *msg) {
+inline int rb_pop(CO_CANrxMsg_t *msg) {
 	if (tail == head)
 		return 0; // empty
 
@@ -76,6 +77,72 @@ static inline int rb_pop(CO_CANrxMsg_t *msg) {
 
 	return 1;
 }
+
+static void
+prv_read_can_received_msg_push(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
+{
+    CO_CANrxMsg_t rcvMsg;
+    FDCAN_RxHeaderTypeDef rx_hdr;
+
+    /* Read received message */
+    if (HAL_FDCAN_GetRxMessage(hfdcan, RxFifo1ITs, &rx_hdr, rcvMsg.data) != HAL_OK) {
+        return;
+    }
+
+    /* Setup identifier */
+    rcvMsg.ident =
+        (rx_hdr.Identifier & CANID_MASK) |
+        (rx_hdr.RxFrameType == FDCAN_REMOTE_FRAME ? FLAG_RTR : 0);
+
+    /* DLC */
+    switch (rx_hdr.DataLength) {
+    case FDCAN_DLC_BYTES_0: rcvMsg.dlc = 0; break;
+    case FDCAN_DLC_BYTES_1: rcvMsg.dlc = 1; break;
+    case FDCAN_DLC_BYTES_2: rcvMsg.dlc = 2; break;
+    case FDCAN_DLC_BYTES_3: rcvMsg.dlc = 3; break;
+    case FDCAN_DLC_BYTES_4: rcvMsg.dlc = 4; break;
+    case FDCAN_DLC_BYTES_5: rcvMsg.dlc = 5; break;
+    case FDCAN_DLC_BYTES_6: rcvMsg.dlc = 6; break;
+    case FDCAN_DLC_BYTES_7: rcvMsg.dlc = 7; break;
+    case FDCAN_DLC_BYTES_8: rcvMsg.dlc = 8; break;
+    default: rcvMsg.dlc = 0; break;
+    }
+
+    /* ✅ Prüfen: ist Message für uns relevant? */
+    CO_CANrx_t *buffer = CANModule_local->rxArray;
+    uint16_t index;
+    uint8_t match = 0;
+
+    for (index = CANModule_local->rxSize; index > 0U; --index, ++buffer) {
+        if (((rcvMsg.ident ^ buffer->ident) & buffer->mask) == 0U) {
+            match = 1;
+            break;
+        }
+    }
+
+    /* ✅ Nur relevante Messages pushen */
+    if (match) {
+        rb_push(&rcvMsg);
+    }
+}
+
+void prv_handle_can_received_msg(CO_CANrxMsg_t *rcvMsg)
+{
+    CO_CANrx_t *buffer = CANModule_local->rxArray;
+    uint16_t index;
+
+    for (index = CANModule_local->rxSize; index > 0U; --index, ++buffer) {
+        if (((rcvMsg->ident ^ buffer->ident) & buffer->mask) == 0U) {
+
+            if (buffer->CANrx_callback != NULL) {
+                buffer->CANrx_callback(buffer->object, (void*) rcvMsg);  // ✅ OHNE &
+            }
+
+            break;
+        }
+    }
+}
+
 #endif
 
 /******************************************************************************/
@@ -706,52 +773,10 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 	if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) {
 
 #ifdef CANFIFO
+        while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0) {
+            prv_read_can_received_msg_push(hfdcan, FDCAN_RX_FIFO0);
+        }
 
-		while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0) {
-			CO_CANrxMsg_t msg;
-
-			// 👉 HAL read
-			FDCAN_RxHeaderTypeDef rx_hdr;
-			HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_hdr, msg.data);
-
-			msg.ident = rx_hdr.Identifier
-					| (rx_hdr.RxFrameType == FDCAN_REMOTE_FRAME ? FLAG_RTR : 0);
-
-			switch (rx_hdr.DataLength) {
-			case FDCAN_DLC_BYTES_0:
-				msg.dlc = 0;
-				break;
-			case FDCAN_DLC_BYTES_1:
-				msg.dlc = 1;
-				break;
-			case FDCAN_DLC_BYTES_2:
-				msg.dlc = 2;
-				break;
-			case FDCAN_DLC_BYTES_3:
-				msg.dlc = 3;
-				break;
-			case FDCAN_DLC_BYTES_4:
-				msg.dlc = 4;
-				break;
-			case FDCAN_DLC_BYTES_5:
-				msg.dlc = 5;
-				break;
-			case FDCAN_DLC_BYTES_6:
-				msg.dlc = 6;
-				break;
-			case FDCAN_DLC_BYTES_7:
-				msg.dlc = 7;
-				break;
-			case FDCAN_DLC_BYTES_8:
-				msg.dlc = 8;
-				break;
-			default:
-				msg.dlc = 0;
-				break; /* Invalid length when more than 8 */
-			}
-			// 👉 push to FIFO
-			rb_push(&msg);
-		}
 #else
 		prv_read_can_received_msg(hfdcan, FDCAN_RX_FIFO0, RxFifo0ITs);
 #endif
@@ -791,9 +816,16 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
         fifoFullCnt++;   // optional Debug
     }
 #endif
-	if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) {
+
+    if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) {
+#ifdef CANFIFO
+    	while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO1) > 0) {
+    	    prv_read_can_received_msg_push(hfdcan, FDCAN_RX_FIFO1);
+    	}
+#else
 		prv_read_can_received_msg(hfdcan, FDCAN_RX_FIFO1, RxFifo1ITs);
-	}
+#endif
+    }
 }
 
 /**
