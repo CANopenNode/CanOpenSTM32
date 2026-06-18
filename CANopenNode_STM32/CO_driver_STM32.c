@@ -38,7 +38,7 @@ static CO_CANmodule_t *CANModule_local = NULL; /* Local instance of global CAN m
 #define CANID_MASK 0x07FF /*!< CAN standard ID mask */
 #define FLAG_RTR   0x8000 /*!< RTR flag, part of identifier */
 
-#define CANFIFO  // Use SW-FIFO for received messages
+// #define CANFIFO  // Use SW-FIFO for received messages
 #ifdef CANFIFO
 #define RX_BUFFER_SIZE 32   // must be 2^n (importent!)
 
@@ -405,8 +405,8 @@ CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer) {
 	 *
 	 * Lock interrupts for atomic operation
 	 */
-	//CO_LOCK_CAN_SEND(CANmodule);
-	CO_LOCK_GUARD(){
+	CO_LOCK_CAN_SEND(CANmodule);
+	//CO_LOCK_GUARD(){
 		if (prv_send_can_message(CANmodule, buffer)) {
 			CANmodule->bufferInhibitFlag = buffer->syncFlag;
 		} else {
@@ -416,8 +416,8 @@ CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer) {
 				CANmodule->CANtxCount++;
 			}
 		}
-	}
-	//CO_UNLOCK_CAN_SEND(CANmodule);
+	//}
+	CO_UNLOCK_CAN_SEND(CANmodule);
 
 	return err;
 }
@@ -426,8 +426,8 @@ CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer) {
 void CO_CANclearPendingSyncPDOs(CO_CANmodule_t *CANmodule) {
 	uint32_t tpdoDeleted = 0U;
 
-	// CO_LOCK_CAN_SEND(CANmodule);
-	CO_LOCK_GUARD(){
+	CO_LOCK_CAN_SEND(CANmodule);
+	//CO_LOCK_GUARD(){
 	/* Abort message from CAN module, if there is synchronous TPDO.
 	 * Take special care with this functionality. */
 	if (/*messageIsOnCanBuffer && */CANmodule->bufferInhibitFlag) {
@@ -448,8 +448,8 @@ void CO_CANclearPendingSyncPDOs(CO_CANmodule_t *CANmodule) {
 			}
 		}
 	}
-	}
-	//CO_UNLOCK_CAN_SEND(CANmodule);
+	//}
+	CO_UNLOCK_CAN_SEND(CANmodule);
 	if (tpdoDeleted) {
 		CANmodule->CANerrorStatus |= CO_CAN_ERRTX_PDO_LATE;
 	}
@@ -818,8 +818,8 @@ void HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef *hfdcan,
 		 * (unless you can guarantee no higher priority interrupt will try to access to FDCAN instance and send data,
 		 *  then no need to lock interrupts..)
 		 */
-		//CO_LOCK_CAN_SEND(CANModule_local);
-		CO_LOCK_GUARD(){
+		CO_LOCK_CAN_SEND(CANModule_local);
+//		CO_LOCK_GUARD(){
 			//for (i = CANModule_local->txSize; i > 0U; --i, ++buffer) {
 			for (i = CANModule_local->txSize; i > 0U && CANModule_local->CANtxCount > 0; --i, ++buffer){
 				/* Try to send message */
@@ -833,8 +833,8 @@ void HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef *hfdcan,
 					}
 				}
 			}
-		}
-		//CO_UNLOCK_CAN_SEND(CANModule_local);
+		//}
+		CO_UNLOCK_CAN_SEND(CANModule_local);
 	}
 }
 #else

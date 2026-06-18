@@ -154,11 +154,13 @@ typedef struct {
 	// Clean code → no separate LOCK / UNLOCK required
 	// Exception-safe → correct behaviour even in the event of early terminations
 	// Optionally PRIMASK-safe → the ori	ginal IRQ status is preserved
-	static volatile uint8_t irqLockActive = 0;
-	#define CO_LOCK_GUARD() \
-		for (uint32_t _primask = (__get_PRIMASK(), __disable_irq(), irqLockActive = 1, 0); \
-			 !_primask; \
-			 (__set_PRIMASK(_primask), irqLockActive = 0))
+//	static volatile uint8_t irqLockActive = 0;
+//	#define CO_LOCK_GUARD() \
+//
+//#define CO_LOCK_GUARD() \
+//    for (uint32_t _primask = __get_PRIMASK(), _once = 1; _once; \
+//         __set_PRIMASK(_primask), _once = 0) \
+//        for (__disable_irq(); _once; )
 
 /* (un)lock critical section in CO_errorReport() or CO_errorReset() */
 #define CO_LOCK_EMCY(CAN_MODULE)                                                                                       \

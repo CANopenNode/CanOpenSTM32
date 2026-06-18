@@ -68,6 +68,10 @@ void canopen_app_process(void);
 /* Thread function executes in constant intervals, this function can be called from FreeRTOS tasks or Timers ********/
 void canopen_app_interrupt(void);
 void CO_InitCallbacks(void);
+#ifdef CANFIFO
+prv_handle_can_received_msg(CO_CANrxMsg_t *rcvMsg);
+#endif
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
