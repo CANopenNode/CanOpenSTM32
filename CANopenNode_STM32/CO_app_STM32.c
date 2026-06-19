@@ -32,10 +32,6 @@
 #include "CO_storageBlank.h"
 #include "OD.h"
 
-#ifdef CANFIFO
-extern inline int rb_pop(CO_CANrxMsg_t *msg);
-extern void prv_handle_can_received_msg(CO_CANrxMsg_t *rcvMsg);
-#endif
 
 CANopenNodeSTM32*
     canopenNodeSTM32; // It will be set by canopen_app_init and will be used across app to get access to CANOpen objects
@@ -223,7 +219,9 @@ void
 canopen_app_process() {
     /* loop for normal program execution ******************************************/
     /* get time difference since last function call */
+
     time_current = HAL_GetTick();
+    static int cnt = 0 ;
 
     if ((time_current - time_old) > 0) { // Make sure more than 1ms elapsed
 
@@ -233,13 +231,42 @@ canopen_app_process() {
         time_old = time_current;
         reset_status = CO_process(CO, false, timeDifference_us, NULL);
 
+        if((CO_nodeGuardingSlave_TimeLeft(CO->NGslave) <100000) ){	// 100 ms vor Ablauf des Guardings, starten wir mal neu
+        	if (cnt<=10){
+				if (cnt==0)
+						log_printf("NMT state; CANnormal; CANerrorStatus; RXF0 fill; RXF0 lost; RXF0 get_idx; RXF0 put_idx; FDCAN IE; FDCAN ILE ;FDCAN IR; FDCAN PSR; FDCAN ECR\r\n");
+
+				log_printf("%d; %d; 0x%04X; %lu; %lu; %lu; %lu; 0x%08lX; 0x%08lX; 0x%08lX; 0x%08lX; 0x%08lX\r\n"	, CO->NMT->operatingState, CO->CANmodule->CANnormal, CO->CANmodule->CANerrorStatus, \
+							FDCAN1->RXF0S & 0x7F, (FDCAN1->RXF0S >> 25) & 1, (FDCAN1->RXF0S >> 8)  & 0x3F, (FDCAN1->RXF0S >> 16)  & 0x3F, FDCAN1->IE, FDCAN1->ILE, FDCAN1->IR, FDCAN1->PSR, FDCAN1->ECR);
+				cnt++;
+
+				if  (cnt>=10){
+//					 canopen_app_resetCommunication();
+					clear_all_can_errorFlags(canopenNodeSTM32->CANHandle);
+
+					__NOP();
+				}
+        	}
+        } else cnt=0;
+
+
 #ifdef CANFIFO
         /* ✅ 1. Alle RX Messages aus Ringbuffer verarbeiten */
     	CO_CANrxMsg_t msg;
     	while (rb_pop(&msg)) {
-    		prv_handle_can_received_msg(&msg);
+    		handle_can_received_msg(&msg);
     	}
+
+
+//        /* ✅ RX Overflow zurücksetzen, wenn stabil */
+//        if (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) == 0 &&
+//            HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO1) == 0) {
+//
+//            CANModule_local->CANerrorStatus &= ~CO_CAN_ERRRX_OVERFLOW;
+//        }
+//
 #endif
+
 
         canopenNodeSTM32->outStatusLEDRed = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
         canopenNodeSTM32->outStatusLEDGreen = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);

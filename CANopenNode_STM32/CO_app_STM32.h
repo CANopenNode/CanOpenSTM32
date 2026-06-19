@@ -71,8 +71,9 @@ void CO_InitCallbacks(void);
 
 #ifdef CANFIFO
 int rb_pop(CO_CANrxMsg_t *msg);
-void prv_handle_can_received_msg(CO_CANrxMsg_t *rcvMsg);
+void handle_can_received_msg(CO_CANrxMsg_t *rcvMsg);
 #endif
+void clear_all_can_errorFlags(FDCAN_HandleTypeDef *hfdcan);
 
 #ifdef __cplusplus
 }
