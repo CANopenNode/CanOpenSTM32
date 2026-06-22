@@ -24,7 +24,6 @@
 extern "C" {
 #endif
 
-
 typedef struct {
     uint8_t
         desiredNodeID; /*This is the Node ID that you ask the CANOpen stack to assign to your device, although it might not always
@@ -56,16 +55,25 @@ typedef struct {
 
 // In order to use CANOpenSTM32, you'll have it have a canopenNodeSTM32 structure somewhere in your codes, it is usually residing in CO_app_STM32.c
 extern CANopenNodeSTM32* canopenNodeSTM32;
+extern CO_t* CO;
 
 
 /* This function will initialize the required CANOpen Stack objects, allocate the memory and prepare stack for communication reset*/
 int canopen_app_init(CANopenNodeSTM32* canopenSTM32);
 /* This function will reset the CAN communication periperhal and also the CANOpen stack variables */
-int canopen_app_resetCommunication();
+int canopen_app_resetCommunication(void);
 /* This function will check the input buffers and any outstanding tasks that are not time critical, this function should be called regurarly from your code (i.e from your while(1))*/
-void canopen_app_process();
+void canopen_app_process(void);
 /* Thread function executes in constant intervals, this function can be called from FreeRTOS tasks or Timers ********/
 void canopen_app_interrupt(void);
+void CO_InitCallbacks(void);
+
+
+#ifdef CANFIFO
+int rb_pop(CO_CANrxMsg_t *msg);
+void handle_can_received_msg(CO_CANrxMsg_t *rcvMsg);
+#endif
+void clear_all_can_errorFlags(FDCAN_HandleTypeDef *hfdcan);
 
 #ifdef __cplusplus
 }

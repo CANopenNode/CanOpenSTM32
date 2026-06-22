@@ -35,7 +35,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// Determining the CANOpen Driver
 
 #if defined(FDCAN) || defined(FDCAN1) || defined(FDCAN2) || defined(FDCAN3)
 #define CO_STM32_FDCAN_Driver 1
@@ -46,6 +45,9 @@
 #endif
 
 #undef CO_CONFIG_STORAGE_ENABLE // We don't need Storage option, implement based on your use case and remove this line from here
+
+#define CO_CONFIG_GLOBAL_FLAG_CALLBACK_PRE (0x1000)				// If Callback for SDO needed
+
 
 #ifdef CO_DRIVER_CUSTOM
 #include "CO_driver_custom.h"
@@ -136,14 +138,15 @@ typedef struct {
     void* addrNV;
 } CO_storage_entry_t;
 
-/* (un)lock critical section in CO_CANsend() */
-// Why disabling the whole Interrupt
-#define CO_LOCK_CAN_SEND(CAN_MODULE)                                                                                   \
-    do {                                                                                                               \
-        (CAN_MODULE)->primask_send = __get_PRIMASK();                                                                  \
-        __disable_irq();                                                                                               \
-    } while (0)
-#define CO_UNLOCK_CAN_SEND(CAN_MODULE) __set_PRIMASK((CAN_MODULE)->primask_send)
+	/* (un)lock critical section in CO_CANsend() */
+	// Why disabling the whole Interrupt
+	#define CO_LOCK_CAN_SEND(CAN_MODULE)                                                                                   \
+		do {                                                                                                               \
+			(CAN_MODULE)->primask_send = __get_PRIMASK();                                                                  \
+			__disable_irq();                                                                                               \
+		} while (0)
+	#define CO_UNLOCK_CAN_SEND(CAN_MODULE) __set_PRIMASK((CAN_MODULE)->primask_send)
+
 
 /* (un)lock critical section in CO_errorReport() or CO_errorReset() */
 #define CO_LOCK_EMCY(CAN_MODULE)                                                                                       \
@@ -174,6 +177,7 @@ typedef struct {
         CO_MemoryBarrier();                                                                                            \
         rxNew = NULL;                                                                                                  \
     } while (0)
+
 
 
 #ifdef __cplusplus
