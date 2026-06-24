@@ -381,14 +381,17 @@ CO_CANclearPendingSyncPDOs(CO_CANmodule_t* CANmodule) {
     }
     /* delete also pending synchronous TPDOs in TX buffers */
     if (CANmodule->CANtxCount > 0) {
-        for (uint16_t i = CANmodule->txSize; i > 0U; --i) {
-            if (CANmodule->txArray[i].bufferFull) {
-                if (CANmodule->txArray[i].syncFlag) {
-                    CANmodule->txArray[i].bufferFull = false;
+        uint16_t i;
+        CO_CANtx_t* buffer = &CANmodule->txArray[0];
+        for (i = CANmodule->txSize; i > 0U; i--) {
+            if (buffer->bufferFull) {
+                if (buffer->syncFlag) {
+                    buffer->bufferFull = false;
                     CANmodule->CANtxCount--;
                     tpdoDeleted = 2U;
                 }
             }
+            buffer++;
         }
     }
     CO_UNLOCK_CAN_SEND(CANmodule);
