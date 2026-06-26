@@ -15,7 +15,6 @@ extern "C"
 
 #endif
 
-/* USER CODE BEGIN Includes */
 #include <stdbool.h>
 #include "main.h"
 

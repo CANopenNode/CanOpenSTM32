@@ -5,7 +5,6 @@
  *      Author: Marc Vandenhende
  */
 
-#include <stdbool.h>
 #include "eeprom.h"
 #include "i2c.h"
 #include "CO_app_STM32.h"
@@ -16,17 +15,17 @@
  */
 #define CO_EEP_MAX_STORAGE  0x2000  // Max number of bytes reserved for CanOpen storage
 
-#define	EEP_MEM_I2C_ADDR	0x50
-#define	EEP_UID_I2C_ADDR	0x58    // For ST eeprom UID
+#define	EEP_MEM_I2C_ADDR	0x50	// I2C address of eeprom device
+#define	EEP_UID_I2C_ADDR	0x58    // I2C address of ST eeprom UID
 
-#define	ST_MFR_CODE	        0x20
-#define	ST_BUS_PROTOCOL	    0xE0
-#define ST_UID_SIZE 	    16
+#define	ST_MFR_CODE	        0x20	// ST manufacturer code
+#define	ST_BUS_PROTOCOL	    0xE0	// ST bus protocol
+#define ST_UID_SIZE 	    16		// ST UID size in #bytes
 
-#define MC_SERIAL_ADDR      0x7ffa
-#define	MC_MFR_CODE	        0x29
-#define	MC_DEVICE_CODE	    0x48
-#define MC_EEP_SERIAL_SIZE	6
+#define MC_SERIAL_ADDR      0x7ffa	// memory location of MC serial number
+#define	MC_MFR_CODE	        0x29	// MC manufacturer code
+#define	MC_DEVICE_CODE	    0x48	// MC device code
+#define MC_EEP_SERIAL_SIZE	6		// MC Serial size in #bytes
 
 typedef struct
 {
@@ -176,7 +175,7 @@ static bool_t eeprom_init_st()
  * Try to initialize Microchip eeprom
  * Check if device is 24AA256UID and sets parameters accordingly
  * returns "true" if initialization is success
- * returns "false" if no ST eeprom found
+ * returns "false" if no MC eeprom found
  */
 static bool_t eeprom_init_mc()
 {
