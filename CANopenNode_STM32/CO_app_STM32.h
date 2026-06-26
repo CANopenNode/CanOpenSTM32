@@ -70,7 +70,8 @@ void CO_InitCallbacks(void);
 
 
 #ifdef CANFIFO
-int rb_pop(CO_CANrxMsg_t *msg);
+//int rb_pop(CO_CANrxMsg_t *msg);
+int rb_pop(CO_CANrxMsg_t *msg, int *used);
 void handle_can_received_msg(CO_CANrxMsg_t *rcvMsg);
 #endif
 void clear_all_can_errorFlags(FDCAN_HandleTypeDef *hfdcan);

@@ -39,23 +39,6 @@ static CO_CANmodule_t *CANModule_local = NULL; /* Local instance of global CAN m
 #define CANID_MASK 0x07FF /*!< CAN standard ID mask */
 #define FLAG_RTR   0x8000 /*!< RTR flag, part of identifier */
 
-#ifdef CO_STM32_FDCAN_Driver
-
-#define FDCAN_IR_ALL_ERROR_MASK ( \
-      FDCAN_IR_ELO  \
-    | FDCAN_IR_BO   \
-    | FDCAN_IR_EP   \
-    | FDCAN_IR_EW   \
-    | FDCAN_IR_PEA  \
-    | FDCAN_IR_PED  \
-    | FDCAN_IR_ARA  \
-    | FDCAN_IR_MRAF \
-    | FDCAN_IR_WDI  \
-    | FDCAN_IR_TOO  \
-    | FDCAN_IR_RF0L \
-    | FDCAN_IR_RF1L )
-
-#endif
 
 #ifdef CANFIFO
 #define RX_BUFFER_SIZE 32   // must be 2^n (importent!)
@@ -93,17 +76,32 @@ static inline void rb_push(const CO_CANrxMsg_t *msg) {
  * \brief           Pop CAN message from software FIFO
  *
  * \param[in]       *msg: Poniter to CAN Message
- * \return			int 0 if FIFO empty, 1 if not empty
+ * \return			leer = 0, n Elemente = n, voll (overwrite-Design) maximal = RX_BUFFER_SIZE möglich, aber praktisch ≤ SIZE-1 nach Pop
  */
-inline int rb_pop(CO_CANrxMsg_t *msg) {
-	if (tail == head)
-		return 0; // empty
+int rb_pop(CO_CANrxMsg_t *msg, int *used)
+{
+    if (tail == head)
+    {
+        *used = 0;
+        return 0;
+    }
 
-	*msg = rxBuffer[tail].msg;
-	tail = (tail + 1) & (RX_BUFFER_SIZE - 1);
+    *msg = rxBuffer[tail].msg;
+    tail = (tail + 1) & (RX_BUFFER_SIZE - 1);
 
-	return 1;
+    *used = (head - tail) & (RX_BUFFER_SIZE - 1);
+
+    return 1;
 }
+//int rb_pop(CO_CANrxMsg_t *msg) {
+//	if (tail == head)
+//		return 0; // empty
+//
+//	*msg = rxBuffer[tail].msg;
+//	tail = (tail + 1) & (RX_BUFFER_SIZE - 1);
+//
+//	return 1;
+//}
 /******************************************************************************/
 /**
  * \brief           Check if received message is for this node
@@ -176,7 +174,7 @@ void handle_can_received_msg(CO_CANrxMsg_t *rcvMsg)
         if (((rcvMsg->ident ^ buffer->ident) & buffer->mask) == 0U) {
 
             if (buffer->CANrx_callback != NULL) {
-                buffer->CANrx_callback(buffer->object, (void*) rcvMsg);  // ✅ OHNE &
+                buffer->CANrx_callback(buffer->object, (void*) rcvMsg);  //
             }
 
             break;
@@ -910,7 +908,7 @@ void HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef *hfdcan,
 		 * (unless you can guarantee no higher priority interrupt will try to access to FDCAN instance and send data,
 		 *  then no need to lock interrupts..)
 		 */
-		CO_LOCK_CAN_SEND(CANModule_local);{
+		CO_LOCK_CAN_SEND(CANModule_local);
 			//for (i = CANModule_local->txSize; i > 0U; --i, ++buffer) {
 			for (i = CANModule_local->txSize; i > 0U && CANModule_local->CANtxCount > 0; --i, ++buffer){
 				/* Try to send message */

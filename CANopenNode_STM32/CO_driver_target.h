@@ -84,6 +84,22 @@ typedef struct {
     uint8_t data[8]; /*!< Received data */
 } CO_CANrxMsg_t;
 
+#ifdef CO_STM32_FDCAN_Driver
+#define FDCAN_IR_ALL_ERROR_MASK ( \
+      FDCAN_IR_ELO  \
+    | FDCAN_IR_BO   \
+    | FDCAN_IR_EP   \
+    | FDCAN_IR_EW   \
+    | FDCAN_IR_PEA  \
+    | FDCAN_IR_PED  \
+    | FDCAN_IR_ARA  \
+    | FDCAN_IR_MRAF \
+    | FDCAN_IR_WDI  \
+    | FDCAN_IR_TOO  \
+    | FDCAN_IR_RF0L \
+    | FDCAN_IR_RF1L )
+#endif
+
 /* Access to received CAN message */
 #define CO_CANrxMsg_readIdent(msg) ((uint16_t)(((CO_CANrxMsg_t*)(msg)))->ident)
 #define CO_CANrxMsg_readDLC(msg)   ((uint8_t)(((CO_CANrxMsg_t*)(msg)))->dlc)
