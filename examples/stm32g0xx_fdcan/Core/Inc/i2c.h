@@ -35,7 +35,8 @@ extern "C" {
 extern I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN Private defines */
-
+#define I2C_TIMEOUT_MS 500
+#define HI2C	&hi2c1
 /* USER CODE END Private defines */
 
 void MX_I2C1_Init(void);
