@@ -22,6 +22,8 @@
  * limitations under the License.
  */
 
+#include <string.h>
+
 #include "storage/CO_storage.h"
 #include "storage/CO_eeprom.h"
 #include "301/crc16-ccitt.h"
@@ -144,7 +146,11 @@ bool_t CO_eeprom_writeBlock(void *storageModule, uint8_t *data, size_t eepromAdd
             len = 0;
 
         /*  wait for completion of the write operation */
-        while (HAL_I2C_IsDeviceReady(HI2C, device_i2c_address << 1, 3, I2C_TIMEOUT_MS) != HAL_OK);
+        if (HAL_I2C_IsDeviceReady(HI2C, device_i2c_address << 1, 10, I2C_TIMEOUT_MS) != HAL_OK);
+        {
+            // device not ready
+            return false;
+        }
     }
     return true;
 }

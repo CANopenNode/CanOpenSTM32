@@ -31,8 +31,8 @@
 typedef struct
 {
     uint8_t density;
-    size_t  storage;
-    size_t  page_size;
+    uint32_t  storage;
+    uint16_t  page_size;
 } eeprom_st_t;
 
 /*
@@ -47,23 +47,21 @@ const eeprom_st_t eeprom_st[] =
     {0x0e, 0x4000, 64},   // m24128-u
     {0x0f, 0x8000, 64},   // m24256-u
     {0x10, 0x10000, 128}, // m24512-u
-    {0x11, 0x20000, 256}, // m24m01e-u
-    {0x12, 0x40000, 256}  // m24m02e-u
 };
 
 bool eeprom_initialized = false;
 
-uint16_t device_size          = 0;
-size_t   page_size            = 0;
+uint32_t device_size          = 0;
+uint16_t page_size            = 0;
 uint16_t device_i2c_address   = EEP_MEM_I2C_ADDR;
 uint32_t device_serial_number = 0;
 
-uint16_t data_storage_start = 0;
-uint16_t data_storage_size  = 0;
+uint32_t data_storage_start = 0;
+uint32_t data_storage_size  = 0;
 
-size_t device_start_co_auto = 0;
-size_t device_start_co_prot = 0;
-size_t device_size_co       = 0;
+uint32_t device_start_co_auto = 0;
+uint32_t device_start_co_prot = 0;
+uint32_t device_size_co       = 0;
 
 static bool_t eeprom_init_mc();
 static bool_t eeprom_init_st();

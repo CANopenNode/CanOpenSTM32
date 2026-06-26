@@ -16,22 +16,23 @@ extern "C"
 #endif
 
 /* USER CODE BEGIN Includes */
+#include <stdbool.h>
 #include "main.h"
 
 bool Eeprom_Init();
 bool Eeprom_Init_CO();
 
-extern uint16_t device_size;
-extern size_t   page_size;
+extern uint32_t device_size;
+extern uint16_t page_size;
 extern uint16_t device_i2c_address;
 extern uint32_t device_serial_number;
 
-extern uint16_t data_storage_start;
-extern uint16_t data_storage_size;
+extern uint32_t data_storage_start;
+extern uint32_t data_storage_size;
 
-extern size_t device_start_co_auto;
-extern size_t device_start_co_prot;
-extern size_t device_size_co;
+extern uint32_t device_start_co_auto;
+extern uint32_t device_start_co_prot;
+extern uint32_t device_size_co;
 
 #ifdef __cplusplus
 }
