@@ -30,7 +30,6 @@
 #include "CO_app_STM32.h"
 #include "OD.h"
 
-#include "i2c.h"
 #include "eeprom.h"
 #include "CO_eeprom_STM32.h"
 
@@ -64,12 +63,12 @@ bool_t CO_eeprom_init(void *storageModule)
     {
         uint8_t eraseBuf[32];
         memset(eraseBuf, 0xff, 32);
-        HAL_I2C_Mem_Write(HI2C, device_i2c_address << 1, eepromAddrNextProt, 2, eraseBuf, 32, I2C_TIMEOUT_MS);
+        HAL_I2C_Mem_Write(HI2C_EEPROM, device_i2c_address << 1, eepromAddrNextProt, 2, eraseBuf, 32, I2C_TIMEOUT_MS);
         HAL_Delay(5); // write operation timer
     }
 
     /* If eeprom chip is OK, this will pass, otherwise timeout */
-    return (HAL_I2C_IsDeviceReady(HI2C, device_i2c_address << 1, 3, I2C_TIMEOUT_MS) == HAL_OK);
+    return (HAL_I2C_IsDeviceReady(HI2C_EEPROM, device_i2c_address << 1, 3, I2C_TIMEOUT_MS) == HAL_OK);
     // return "true" if device ready
 }
 
@@ -110,7 +109,7 @@ size_t CO_eeprom_getAddr(void *storageModule, bool_t isAuto, size_t len, bool_t 
 /******************************************************************************/
 void CO_eeprom_readBlock(void *storageModule, uint8_t *data, size_t eepromAddr, size_t len)
 {
-    HAL_I2C_Mem_Read(HI2C, device_i2c_address << 1, eepromAddr, 2, (uint8_t *) data, len, I2C_TIMEOUT_MS);
+    HAL_I2C_Mem_Read(HI2C_EEPROM, device_i2c_address << 1, eepromAddr, 2, (uint8_t *) data, len, I2C_TIMEOUT_MS);
 }
 
 /******************************************************************************/
@@ -118,7 +117,7 @@ bool_t CO_eeprom_writeBlock(void *storageModule, uint8_t *data, size_t eepromAdd
 {
     uint32_t idx = 0;
 
-    if (HAL_I2C_IsDeviceReady(HI2C, device_i2c_address << 1, 3, I2C_TIMEOUT_MS) != HAL_OK)
+    if (HAL_I2C_IsDeviceReady(HI2C_EEPROM, device_i2c_address << 1, 3, I2C_TIMEOUT_MS) != HAL_OK)
     {
         // device not ready
         return false;
@@ -130,7 +129,7 @@ bool_t CO_eeprom_writeBlock(void *storageModule, uint8_t *data, size_t eepromAdd
         if (len_x > page_size)
             len_x = page_size;
 
-        if (HAL_I2C_Mem_Write(HI2C, device_i2c_address << 1, eepromAddr, 2, (uint8_t *) data + idx, len_x,
+        if (HAL_I2C_Mem_Write(HI2C_EEPROM, device_i2c_address << 1, eepromAddr, 2, (uint8_t *) data + idx, len_x,
                               I2C_TIMEOUT_MS) != HAL_OK)
         {
             // write command error
@@ -146,7 +145,7 @@ bool_t CO_eeprom_writeBlock(void *storageModule, uint8_t *data, size_t eepromAdd
             len = 0;
 
         /*  wait for completion of the write operation */
-        if (HAL_I2C_IsDeviceReady(HI2C, device_i2c_address << 1, 3, I2C_TIMEOUT_MS) != HAL_OK)
+        if (HAL_I2C_IsDeviceReady(HI2C_EEPROM, device_i2c_address << 1, 3, I2C_TIMEOUT_MS) != HAL_OK)
         {
             // device not ready
             return false;
@@ -172,7 +171,7 @@ uint16_t CO_eeprom_getCrcBlock(void *storageModule, size_t eepromAddr, size_t le
             subLen = BUF_SIZE;
 
         /* update crc from data part */
-        HAL_I2C_Mem_Read(HI2C, device_i2c_address << 1, eepromAddr, 2, buf, subLen, I2C_TIMEOUT_MS);
+        HAL_I2C_Mem_Read(HI2C_EEPROM, device_i2c_address << 1, eepromAddr, 2, buf, subLen, I2C_TIMEOUT_MS);
         crc        = crc16_ccitt(buf, subLen, crc);
         eepromAddr += BUF_SIZE;
         len        -= subLen;
@@ -187,14 +186,14 @@ bool_t CO_eeprom_updateByte(void * storageModule, uint8_t data,
 {
     uint8_t buf;
 
-    if (HAL_I2C_IsDeviceReady(HI2C, device_i2c_address << 1, 3, I2C_TIMEOUT_MS)
+    if (HAL_I2C_IsDeviceReady(HI2C_EEPROM, device_i2c_address << 1, 3, I2C_TIMEOUT_MS)
         != HAL_OK)
     {
         return false;
     }
 
     /* read data byte from eeprom */
-    if (HAL_I2C_Mem_Read(HI2C, device_i2c_address << 1, eepromAddr, 2, &buf, 1, I2C_TIMEOUT_MS) != HAL_OK)
+    if (HAL_I2C_Mem_Read(HI2C_EEPROM, device_i2c_address << 1, eepromAddr, 2, &buf, 1, I2C_TIMEOUT_MS) != HAL_OK)
     {
         return false;
     }
@@ -203,7 +202,7 @@ bool_t CO_eeprom_updateByte(void * storageModule, uint8_t data,
      * Don't wait for write to complete */
     if (buf != data)
     {
-        if (HAL_I2C_Mem_Write(HI2C, device_i2c_address << 1, eepromAddr, 2, &data, 1, I2C_TIMEOUT_MS) != HAL_OK)
+        if (HAL_I2C_Mem_Write(HI2C_EEPROM, device_i2c_address << 1, eepromAddr, 2, &data, 1, I2C_TIMEOUT_MS) != HAL_OK)
         {
             return false;
         }

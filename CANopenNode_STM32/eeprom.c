@@ -13,6 +13,7 @@
 /*
  * Hardware definition
  */
+
 #define CO_EEP_MAX_STORAGE  0x2000  // Max number of bytes reserved for CanOpen storage
 
 #define	EEP_MEM_I2C_ADDR	0x50	// I2C address of eeprom device
@@ -82,7 +83,7 @@ bool Eeprom_Init()
     }
 
     /* If eeprom chip is OK, this will pass, otherwise timeout */
-    eeprom_initialized = HAL_I2C_IsDeviceReady(HI2C, EEP_MEM_I2C_ADDR << 1, 3, I2C_TIMEOUT_MS) == HAL_OK;
+    eeprom_initialized = HAL_I2C_IsDeviceReady(HI2C_EEPROM, EEP_MEM_I2C_ADDR << 1, 3, I2C_TIMEOUT_MS) == HAL_OK;
 
     return eeprom_initialized;
 }
@@ -100,7 +101,7 @@ bool Eeprom_Init_CO()
 
     OD_PERSIST_COMM.x1018_identity.serialNumber = device_serial_number;
     /* If eeprom chip is OK, this will pass, otherwise timeout */
-    return (HAL_I2C_IsDeviceReady(HI2C, EEP_MEM_I2C_ADDR << 1, 3, I2C_TIMEOUT_MS) == HAL_OK);
+    return (HAL_I2C_IsDeviceReady(HI2C_EEPROM, EEP_MEM_I2C_ADDR << 1, 3, I2C_TIMEOUT_MS) == HAL_OK);
     // return "true" if device ready
 }
 
@@ -115,10 +116,10 @@ static bool_t eeprom_init_st()
     uint8_t uid[ST_UID_SIZE];
 
     /* If eeprom chip is OK, this will pass, otherwise timeout */
-    if (HAL_I2C_IsDeviceReady(HI2C, EEP_UID_I2C_ADDR << 1, 3, I2C_TIMEOUT_MS) != HAL_OK)
+    if (HAL_I2C_IsDeviceReady(HI2C_EEPROM, EEP_UID_I2C_ADDR << 1, 3, I2C_TIMEOUT_MS) != HAL_OK)
         return false; // return "false" if device not ready
 
-    if (HAL_I2C_Mem_Read(HI2C, EEP_UID_I2C_ADDR << 1, 0, 2, uid, ST_UID_SIZE, I2C_TIMEOUT_MS) != HAL_OK)
+    if (HAL_I2C_Mem_Read(HI2C_EEPROM, EEP_UID_I2C_ADDR << 1, 0, 2, uid, ST_UID_SIZE, I2C_TIMEOUT_MS) != HAL_OK)
         return false; // return "false" if device does not respond
 
     // Check if STM EEPROM device
@@ -182,10 +183,10 @@ static bool_t eeprom_init_mc()
     uint8_t serial[MC_EEP_SERIAL_SIZE];
 
     /* If eeprom chip is OK, this will pass, otherwise timeout */
-    if (HAL_I2C_IsDeviceReady(HI2C, EEP_MEM_I2C_ADDR << 1, 3, I2C_TIMEOUT_MS) != HAL_OK)
+    if (HAL_I2C_IsDeviceReady(HI2C_EEPROM, EEP_MEM_I2C_ADDR << 1, 3, I2C_TIMEOUT_MS) != HAL_OK)
         return false; // return "false" if device not ready
 
-    if (HAL_I2C_Mem_Read(HI2C, EEP_MEM_I2C_ADDR << 1, MC_SERIAL_ADDR, 2, serial, MC_EEP_SERIAL_SIZE, I2C_TIMEOUT_MS) !=
+    if (HAL_I2C_Mem_Read(HI2C_EEPROM, EEP_MEM_I2C_ADDR << 1, MC_SERIAL_ADDR, 2, serial, MC_EEP_SERIAL_SIZE, I2C_TIMEOUT_MS) !=
         HAL_OK)
         return false; // return "false" if device does not respond
 
