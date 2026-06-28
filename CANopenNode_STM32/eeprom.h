@@ -19,8 +19,6 @@ extern "C"
 #include "main.h"
 #include "i2c.h"
 
-#define HI2C_EEPROM &hi2c1		// i2c handle used for eeprom device
-
 bool Eeprom_Init();
 bool Eeprom_Init_CO();
 

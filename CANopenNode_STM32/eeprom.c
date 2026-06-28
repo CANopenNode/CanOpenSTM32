@@ -6,7 +6,6 @@
  */
 
 #include "eeprom.h"
-#include "i2c.h"
 #include "CO_app_STM32.h"
 #include "OD.h"
 
