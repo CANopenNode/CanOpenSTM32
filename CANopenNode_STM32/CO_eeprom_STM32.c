@@ -115,7 +115,8 @@ void CO_eeprom_readBlock(void *storageModule, uint8_t *data, size_t eepromAddr, 
 /******************************************************************************/
 bool_t CO_eeprom_writeBlock(void *storageModule, uint8_t *data, size_t eepromAddr, size_t len)
 {
-    uint32_t idx = 0;
+    uint32_t idx             = 0;
+    uint32_t eep_write_timer = 0;
 
     if (HAL_I2C_IsDeviceReady(HI2C_EEPROM, device_i2c_address << 1, 3, I2C_TIMEOUT_MS) != HAL_OK)
     {
@@ -145,10 +146,15 @@ bool_t CO_eeprom_writeBlock(void *storageModule, uint8_t *data, size_t eepromAdd
             len = 0;
 
         /*  wait for completion of the write operation */
-        if (HAL_I2C_IsDeviceReady(HI2C_EEPROM, device_i2c_address << 1, 3, I2C_TIMEOUT_MS) != HAL_OK)
+        eep_write_timer = HAL_GetTick();
+        while (HAL_I2C_IsDeviceReady(HI2C_EEPROM, device_i2c_address << 1, 3, I2C_TIMEOUT_MS) != HAL_OK)
         {
-            // device not ready
-            return false;
+            // device not ready yet
+            if (HAL_GetTick() - eep_write_timer >= EEPROM_WRITE_TIME + 1)   // + 1 to compensate for HAL_GetTick() millisecond jitter
+            {
+                // time out
+                return false;
+            }
         }
     }
     return true;

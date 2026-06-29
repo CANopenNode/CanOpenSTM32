@@ -8,16 +8,11 @@
 #ifndef INC_EEPROM_H_
 #define INC_EEPROM_H_
 
-#ifdef __cplusplus
-extern "C"
-{
-
-
-#endif
-
 #include <stdbool.h>
 #include "main.h"
 #include "i2c.h"
+
+#define EEPROM_WRITE_TIME 5     // maximum write cycle time
 
 bool Eeprom_Init();
 bool Eeprom_Init_CO();
@@ -33,9 +28,5 @@ extern uint32_t data_storage_size;
 extern uint32_t device_start_co_auto;
 extern uint32_t device_start_co_prot;
 extern uint32_t device_size_co;
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* INC_EEPROM_H_ */
