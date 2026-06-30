@@ -38,13 +38,7 @@ static CO_CANmodule_t* CANModule_local = NULL; /* Local instance of global CAN m
 #define CANID_MASK 0x07FF /*!< CAN standard ID mask */
 #define FLAG_RTR   0x8000 /*!< RTR flag, part of identifier */
 
-#ifndef BUFFERE_INDEXES
-#ifdef STM32H5xx_HAL_CONF_H
-#define BUFFERE_INDEXES FDCAN_TX_BUFFER0 | FDCAN_TX_BUFFER1 | FDCAN_TX_BUFFER2
-#else
-#define BUFFERE_INDEXES 0xFFFFFFFF
-#endif
-#endif
+#define BUFFER_INDEXES FDCAN_TX_BUFFER0 | FDCAN_TX_BUFFER1 | FDCAN_TX_BUFFER2
 
 /******************************************************************************/
 void
@@ -170,7 +164,7 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
                                            | FDCAN_IT_TX_COMPLETE | FDCAN_IT_TX_FIFO_EMPTY | FDCAN_IT_BUS_OFF
                                            | FDCAN_IT_ARB_PROTOCOL_ERROR | FDCAN_IT_DATA_PROTOCOL_ERROR
                                            | FDCAN_IT_ERROR_PASSIVE | FDCAN_IT_ERROR_WARNING,
-                                       BUFFERE_INDEXES)
+                                       BUFFER_INDEXES)
         != HAL_OK) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
