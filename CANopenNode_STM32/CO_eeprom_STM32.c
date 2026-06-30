@@ -179,7 +179,7 @@ uint16_t CO_eeprom_getCrcBlock(void *storageModule, size_t eepromAddr, size_t le
         /* update crc from data part */
         HAL_I2C_Mem_Read(HI2C_EEPROM, device_i2c_address << 1, eepromAddr, 2, buf, subLen, I2C_TIMEOUT_MS);
         crc        = crc16_ccitt(buf, subLen, crc);
-        eepromAddr += BUF_SIZE;
+        eepromAddr += subLen;
         len        -= subLen;
     }
 

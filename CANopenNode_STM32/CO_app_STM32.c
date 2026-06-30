@@ -104,8 +104,8 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
 
     if (err != CO_ERROR_NO && err != CO_ERROR_DATA_CORRUPT)
     {
-        log_printf("Error: Storage %ld\n", storageInitError);
-        return 2;
+		log_printf("Error: Storage %" PRIu32 "\n", storageInitError);
+		return 2;
     }
 #endif
 
