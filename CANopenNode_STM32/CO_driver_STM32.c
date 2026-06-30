@@ -38,7 +38,9 @@ static CO_CANmodule_t* CANModule_local = NULL; /* Local instance of global CAN m
 #define CANID_MASK 0x07FF /*!< CAN standard ID mask */
 #define FLAG_RTR   0x8000 /*!< RTR flag, part of identifier */
 
+#ifndef BUFFER_INDEXES
 #define BUFFER_INDEXES FDCAN_TX_BUFFER0 | FDCAN_TX_BUFFER1 | FDCAN_TX_BUFFER2
+#endif
 
 /******************************************************************************/
 void
