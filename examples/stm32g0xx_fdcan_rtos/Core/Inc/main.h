@@ -31,6 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "i2c.h"
 #define CO_USE_OS 1
 /* USER CODE END Includes */
 

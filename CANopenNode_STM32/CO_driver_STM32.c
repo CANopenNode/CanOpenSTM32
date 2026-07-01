@@ -411,7 +411,7 @@ CO_CANclearPendingSyncPDOs(CO_CANmodule_t* CANmodule) {
 /******************************************************************************/
 /* Get error counters from the module. If necessary, function may use
     * different way to determine errors. */
-static uint16_t rxErrors = 0, txErrors = 0, overflow = 0;
+// static uint16_t rxErrors = 0, txErrors = 0, overflow = 0;
 
 void
 CO_CANmodule_process(CO_CANmodule_t* CANmodule) {

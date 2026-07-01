@@ -1,0 +1,31 @@
+/*
+ * eeprom.h
+ *
+ *  Created on: 11 jun 2026
+ *      Author: Marc Vandenhende
+ */
+
+#ifndef INC_EEPROM_H_
+#define INC_EEPROM_H_
+
+#include <stdbool.h>
+#include "main.h"
+
+#define EEPROM_WRITE_TIME 5     // maximum write cycle time
+
+bool Eeprom_Init();
+bool Eeprom_Init_CO();
+
+extern uint32_t device_size;
+extern uint16_t page_size;
+extern uint16_t device_i2c_address;
+extern uint32_t device_serial_number;
+
+extern uint32_t data_storage_start;
+extern uint32_t data_storage_size;
+
+extern uint32_t device_start_co_auto;
+extern uint32_t device_start_co_prot;
+extern uint32_t device_size_co;
+
+#endif /* INC_EEPROM_H_ */

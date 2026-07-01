@@ -45,7 +45,7 @@
 #error This STM32 Do not support CAN or FDCAN
 #endif
 
-#undef CO_CONFIG_STORAGE_ENABLE // We don't need Storage option, implement based on your use case and remove this line from here
+// #undef CO_CONFIG_STORAGE_ENABLE // We don't need Storage option, implement based on your use case and remove this line from here
 
 #ifdef CO_DRIVER_CUSTOM
 #include "CO_driver_custom.h"
@@ -134,6 +134,11 @@ typedef struct {
     uint8_t attr;
     /* Additional variables (target specific) */
     void* addrNV;
+    void *   storageModule;
+    uint16_t crc;
+    size_t   eepromAddrSignature;
+    size_t   eepromAddr;
+    size_t   offset;
 } CO_storage_entry_t;
 
 /* (un)lock critical section in CO_CANsend() */
