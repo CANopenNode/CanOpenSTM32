@@ -38,8 +38,15 @@ static CO_CANmodule_t* CANModule_local = NULL; /* Local instance of global CAN m
 #define CANID_MASK 0x07FF /*!< CAN standard ID mask */
 #define FLAG_RTR   0x8000 /*!< RTR flag, part of identifier */
 
-#ifndef BUFFER_INDEXES
-#define BUFFER_INDEXES FDCAN_TX_BUFFER0 | FDCAN_TX_BUFFER1 | FDCAN_TX_BUFFER2
+#ifndef FDCAN_BUFFER_INDEXES
+#if defined (FDCAN_TX_BUFFER31)
+#define FDCAN_BUFFER_INDEXES 0xFFFFFFFFU
+#elif defined (FDCAN_TX_BUFFER2)
+#define FDCAN_BUFFER_INDEXES FDCAN_TX_BUFFER0 | FDCAN_TX_BUFFER1 | FDCAN_TX_BUFFER2
+#else
+#define FDCAN_BUFFER_INDEXES 0xFFFFFFFFU
+#warning "FDCAN_BUFFER_INDEXES not defined"
+#endif
 #endif
 
 /******************************************************************************/
@@ -166,7 +173,7 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
                                            | FDCAN_IT_TX_COMPLETE | FDCAN_IT_TX_FIFO_EMPTY | FDCAN_IT_BUS_OFF
                                            | FDCAN_IT_ARB_PROTOCOL_ERROR | FDCAN_IT_DATA_PROTOCOL_ERROR
                                            | FDCAN_IT_ERROR_PASSIVE | FDCAN_IT_ERROR_WARNING,
-                                       BUFFER_INDEXES)
+                                       FDCAN_BUFFER_INDEXES)
         != HAL_OK) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
