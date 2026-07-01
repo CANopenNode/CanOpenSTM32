@@ -317,6 +317,7 @@ void Error_Handler(void);
 #define LCD_G3_GPIO_Port GPIOE
 /* USER CODE BEGIN Private defines */
 #define HI2C_EEPROM &hi2c4		// i2c handle used for eeprom device
+#define I2C_TIMEOUT_MS 100
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
