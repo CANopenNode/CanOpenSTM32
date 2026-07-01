@@ -37,7 +37,9 @@ CANopenNodeSTM32*
     canopenNodeSTM32; // It will be set by canopen_app_init and will be used across app to get access to CANOpen objects
 
 /* Printf function of CanOpen app */
+#ifndef log_printf
 #define log_printf(macropar_message, ...) printf(macropar_message, ##__VA_ARGS__)
+#endif
 
 /* default values for CO_CANopenInit() */
 #define NMT_CONTROL                                                                                                    \
