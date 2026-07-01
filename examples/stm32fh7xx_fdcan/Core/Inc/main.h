@@ -36,7 +36,7 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
+extern I2C_HandleTypeDef hi2c4;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -316,7 +316,7 @@ void Error_Handler(void);
 #define LCD_G3_Pin GPIO_PIN_11
 #define LCD_G3_GPIO_Port GPIOE
 /* USER CODE BEGIN Private defines */
-
+#define HI2C_EEPROM &hi2c4		// i2c handle used for eeprom device
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

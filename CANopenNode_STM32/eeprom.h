@@ -10,9 +10,9 @@
 
 #include <stdbool.h>
 #include "main.h"
-#include "i2c.h"
 
 #define EEPROM_WRITE_TIME 5     // maximum write cycle time
+#define I2C_TIMEOUT_MS 100
 
 bool Eeprom_Init();
 bool Eeprom_Init_CO();

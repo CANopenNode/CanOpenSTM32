@@ -59,7 +59,8 @@ bool_t CO_eeprom_init(void *storageModule)
 
     // invalidate eeprom contents if CAN_CFG jumper placed
 
-    if (HAL_GPIO_ReadPin(JOY_DOWN_GPIO_Port, JOY_DOWN_Pin))
+    //if (HAL_GPIO_ReadPin(JOY_DOWN_GPIO_Port, JOY_DOWN_Pin))
+    if (false)
     {
         uint8_t eraseBuf[32];
         memset(eraseBuf, 0xff, 32);
