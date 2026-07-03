@@ -58,9 +58,8 @@ bool_t CO_eeprom_init(void *storageModule)
     OD_PERSIST_COMM.x1018_identity.serialNumber = device_serial_number;
 
     // invalidate eeprom contents if CAN_CFG jumper placed
-
-    //if (HAL_GPIO_ReadPin(JOY_DOWN_GPIO_Port, JOY_DOWN_Pin))
-    if (false)
+    //if (!HAL_GPIO_ReadPin(CAN_CFG_GPIO_Port, CAN_CFG_Pin))
+	if (false)
     {
         uint8_t eraseBuf[32];
         memset(eraseBuf, 0xff, 32);
