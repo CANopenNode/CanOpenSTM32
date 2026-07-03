@@ -14,7 +14,6 @@
 #define EEPROM_WRITE_TIME 5     // maximum write cycle time
 
 bool Eeprom_Init();
-bool Eeprom_Init_CO();
 
 extern uint32_t device_size;
 extern uint16_t page_size;

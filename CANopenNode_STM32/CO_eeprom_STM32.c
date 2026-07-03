@@ -48,7 +48,7 @@ static size_t eepromAddrNextProt = 0;
 bool_t CO_eeprom_init(void *storageModule)
 {
     // initialize canopen eeprom storage
-    if (!Eeprom_Init_CO())
+    if (!Eeprom_Init())
     {
         return false;
     }
@@ -68,9 +68,8 @@ bool_t CO_eeprom_init(void *storageModule)
         HAL_Delay(5); // write operation timer
     }
 
-    /* If eeprom chip is OK, this will pass, otherwise timeout */
+    /* If eeprom chip is OK, this will return "true" */
     return (HAL_I2C_IsDeviceReady(HI2C_EEPROM, device_i2c_address << 1, 3, I2C_TIMEOUT_MS) == HAL_OK);
-    // return "true" if device ready
 }
 
 /******************************************************************************/

@@ -28,7 +28,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "CO_app_STM32.h"
-#include "eeprom.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -107,7 +106,6 @@ int main(void)
   MX_TIM17_Init();
   MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
-  Eeprom_Init();
   /* CANHandle : Pass in the CAN Handle to this function and it wil be used for all CAN Communications. It can be FDCan or CAN
    * and CANOpenSTM32 Driver will take of care of handling that
    * HWInitFunction : Pass in the function that initialize the CAN peripheral, usually MX_CAN_Init

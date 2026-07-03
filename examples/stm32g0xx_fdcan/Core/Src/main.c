@@ -30,7 +30,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "CO_app_STM32.h"
-#include "eeprom.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -108,8 +107,6 @@ int main(void)
   MX_USB_DRD_FS_PCD_Init();
   MX_TIM17_Init();
   /* USER CODE BEGIN 2 */
-  Eeprom_Init();
-
   CANopenNodeSTM32 canOpenNodeSTM32;
   canOpenNodeSTM32.CANHandle = &hfdcan1;
   canOpenNodeSTM32.HWInitFunction = MX_FDCAN1_Init;
