@@ -57,16 +57,6 @@ bool_t CO_eeprom_init(void *storageModule)
     eepromAddrNextProt                          = device_start_co_prot;
     OD_PERSIST_COMM.x1018_identity.serialNumber = device_serial_number;
 
-    // invalidate eeprom contents if CAN_CFG jumper placed
-    //if (!HAL_GPIO_ReadPin(CAN_CFG_GPIO_Port, CAN_CFG_Pin))
-	if (false)
-    {
-        uint8_t eraseBuf[32];
-        memset(eraseBuf, 0xff, 32);
-        HAL_I2C_Mem_Write(HI2C_EEPROM, device_i2c_address << 1, eepromAddrNextProt, 2, eraseBuf, 32, I2C_TIMEOUT_MS);
-        HAL_Delay(5); // write operation timer
-    }
-
     /* If eeprom chip is OK, this will return "true" */
     return (HAL_I2C_IsDeviceReady(HI2C_EEPROM, device_i2c_address << 1, 3, I2C_TIMEOUT_MS) == HAL_OK);
 }
@@ -149,7 +139,8 @@ bool_t CO_eeprom_writeBlock(void *storageModule, uint8_t *data, size_t eepromAdd
         while (HAL_I2C_IsDeviceReady(HI2C_EEPROM, device_i2c_address << 1, 3, I2C_TIMEOUT_MS) != HAL_OK)
         {
             // device not ready yet
-            if (HAL_GetTick() - eep_write_timer >= EEPROM_WRITE_TIME + 1)   // + 1 to compensate for HAL_GetTick() millisecond jitter
+            if (HAL_GetTick() - eep_write_timer >= EEPROM_WRITE_TIME + 1)
+            // + 1 to compensate for HAL_GetTick() millisecond jitter
             {
                 // time out
                 return false;
@@ -180,6 +171,12 @@ uint16_t CO_eeprom_getCrcBlock(void *storageModule, size_t eepromAddr, size_t le
         crc        = crc16_ccitt(buf, subLen, crc);
         eepromAddr += subLen;
         len        -= subLen;
+    }
+
+    // return invalid CRC when CAN_CFG jumper is placed
+    if (!HAL_GPIO_ReadPin(CAN_CFG_GPIO_Port, CAN_CFG_Pin))
+    {
+        crc = ~crc;
     }
 
     return crc;
