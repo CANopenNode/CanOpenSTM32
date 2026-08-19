@@ -173,12 +173,14 @@ uint16_t CO_eeprom_getCrcBlock(void *storageModule, size_t eepromAddr, size_t le
         len        -= subLen;
     }
 
-    // return invalid CRC when CAN_CFG jumper is placed
+    /* Return invalid CRC when CAN_CFG jumper is placed (input pulled LOW). This optional feature is only
+     * active on targets that define CAN_CFG_GPIO_Port/CAN_CFG_Pin (e.g. in main.h). */
+#if defined(CAN_CFG_GPIO_Port) && defined(CAN_CFG_Pin)
     if (!HAL_GPIO_ReadPin(CAN_CFG_GPIO_Port, CAN_CFG_Pin))
     {
         crc = ~crc;
     }
-
+#endif
     return crc;
 }
 
