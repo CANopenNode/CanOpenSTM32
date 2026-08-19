@@ -38,6 +38,7 @@ static CO_CANmodule_t* CANModule_local = NULL; /* Local instance of global CAN m
 #define CANID_MASK 0x07FF /*!< CAN standard ID mask */
 #define FLAG_RTR   0x8000 /*!< RTR flag, part of identifier */
 
+#ifdef CO_STM32_FDCAN_Driver
 #ifndef FDCAN_BUFFER_INDEXES
 #if defined (FDCAN_TX_BUFFER31)
 #define FDCAN_BUFFER_INDEXES 0xFFFFFFFFU
@@ -46,6 +47,7 @@ static CO_CANmodule_t* CANModule_local = NULL; /* Local instance of global CAN m
 #else
 #define FDCAN_BUFFER_INDEXES 0xFFFFFFFFU
 #warning "FDCAN_BUFFER_INDEXES not defined"
+#endif
 #endif
 #endif
 
