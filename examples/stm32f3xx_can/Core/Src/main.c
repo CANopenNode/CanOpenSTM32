@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "can.h"
+#include "i2c.h"
 #include "rtc.h"
 #include "tim.h"
 #include "usart.h"
@@ -103,6 +104,7 @@ int main(void)
   MX_USB_PCD_Init();
   MX_CAN_Init();
   MX_TIM17_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
   /* CANHandle : Pass in the CAN Handle to this function and it wil be used for all CAN Communications. It can be FDCan or CAN
    * and CANOpenSTM32 Driver will take of care of handling that
@@ -154,6 +156,14 @@ void SystemClock_Config(void)
   {
 
   }
+  LL_RCC_HSI_Enable();
+
+   /* Wait till HSI is ready */
+  while(LL_RCC_HSI_IsReady() != 1)
+  {
+
+  }
+  LL_RCC_HSI_SetCalibTrimming(16);
   LL_RCC_LSI_Enable();
 
    /* Wait till LSI is ready */
@@ -195,6 +205,7 @@ void SystemClock_Config(void)
     Error_Handler();
   }
   LL_RCC_SetUSARTClockSource(LL_RCC_USART3_CLKSOURCE_PCLK1);
+  LL_RCC_SetI2CClockSource(LL_RCC_I2C2_CLKSOURCE_HSI);
   LL_RCC_SetTIMClockSource(LL_RCC_TIM17_CLKSOURCE_PCLK2);
   LL_RCC_SetUSBClockSource(LL_RCC_USB_CLKSOURCE_PLL_DIV_1_5);
 }

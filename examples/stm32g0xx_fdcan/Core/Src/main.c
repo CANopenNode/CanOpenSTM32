@@ -107,7 +107,6 @@ int main(void)
   MX_USB_DRD_FS_PCD_Init();
   MX_TIM17_Init();
   /* USER CODE BEGIN 2 */
-
   CANopenNodeSTM32 canOpenNodeSTM32;
   canOpenNodeSTM32.CANHandle = &hfdcan1;
   canOpenNodeSTM32.HWInitFunction = MX_FDCAN1_Init;
