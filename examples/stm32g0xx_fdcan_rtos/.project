@@ -40,5 +40,10 @@
 			<type>2</type>
 			<locationURI>PARENT-2-PROJECT_LOC/CANopenNode_STM32</locationURI>
 		</link>
+		<link>
+			<name>general</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-1-PROJECT_LOC%7D/general</locationURI>
+		</link>
 	</linkedResources>
 </projectDescription>

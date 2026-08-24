@@ -100,7 +100,7 @@ int main(void)
   MX_GPIO_Init();
   MX_RTC_Init();
   MX_USART3_UART_Init();
-  MX_USB_PCD_Init();
+  //MX_USB_PCD_Init();
   MX_CAN_Init();
   MX_TIM17_Init();
   /* USER CODE BEGIN 2 */
