@@ -7,7 +7,7 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2022 STMicroelectronics.
+  * Copyright (c) 2026 STMicroelectronics.
   * All rights reserved.
   *
   * This software is licensed under terms that can be found in the LICENSE file
@@ -32,14 +32,14 @@ extern "C" {
 
 /* USER CODE END Includes */
 
-extern I2C_HandleTypeDef hi2c1;
+extern I2C_HandleTypeDef hi2c2;
 
 /* USER CODE BEGIN Private defines */
 #define I2C_TIMEOUT_MS 100
-#define HI2C_EEPROM &hi2c1		// i2c handle used for eeprom device
+#define HI2C_EEPROM &hi2c2		// i2c handle used for eeprom device
 /* USER CODE END Private defines */
 
-void MX_I2C1_Init(void);
+void MX_I2C2_Init(void);
 
 /* USER CODE BEGIN Prototypes */
 
