@@ -136,6 +136,8 @@ typedef struct {
     void* addrNV;
 } CO_storage_entry_t;
 
+/* Skipped if a custom driver header (CO_DRIVER_CUSTOM) already defined CO_LOCK_CAN_SEND */
+#ifndef CO_LOCK_CAN_SEND
 /* (un)lock critical section in CO_CANsend() */
 // Why disabling the whole Interrupt
 #define CO_LOCK_CAN_SEND(CAN_MODULE)                                                                                   \
@@ -160,6 +162,7 @@ typedef struct {
         __disable_irq();                                                                                               \
     } while (0)
 #define CO_UNLOCK_OD(CAN_MODULE) __set_PRIMASK((CAN_MODULE)->primask_od)
+#endif /* CO_LOCK_CAN_SEND */
 
 /* Synchronization between CAN receive and message processing threads. */
 #define CO_MemoryBarrier()
