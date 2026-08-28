@@ -12,6 +12,7 @@ file(GLOB_RECURSE files_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/Core/Startup/*.s
     ${CMAKE_CURRENT_LIST_DIR}/Drivers/STM32G0xx_HAL_Driver/Src/*.c
     ${CMAKE_CURRENT_LIST_DIR}/../../CANopenNode_STM32/*.c
+    ${CMAKE_CURRENT_LIST_DIR}/../general/*.c
 )
 file(GLOB_RECURSE canopennode_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/../../CANopenNode/*.c
@@ -32,6 +33,7 @@ set(include_DIRS ${include_DIRS}
     ${CMAKE_CURRENT_LIST_DIR}/Drivers/CMSIS/Include
     ${CMAKE_CURRENT_LIST_DIR}/../../CANopenNode
     ${CMAKE_CURRENT_LIST_DIR}/../../CANopenNode_STM32
+    ${CMAKE_CURRENT_LIST_DIR}/../general
 )
 
 # Symbols for compilation
