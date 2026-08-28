@@ -196,11 +196,22 @@ void
 CO_CANmodule_disable(CO_CANmodule_t* CANmodule) {
     if (CANmodule != NULL && CANmodule->CANptr != NULL) {
 #ifdef CO_STM32_FDCAN_Driver
+        HAL_FDCAN_DeactivateNotification(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle,
+                                         0 | FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_RX_FIFO1_NEW_MESSAGE
+                                             | FDCAN_IT_TX_COMPLETE | FDCAN_IT_TX_FIFO_EMPTY | FDCAN_IT_BUS_OFF
+                                             | FDCAN_IT_ARB_PROTOCOL_ERROR | FDCAN_IT_DATA_PROTOCOL_ERROR
+                                             | FDCAN_IT_ERROR_PASSIVE | FDCAN_IT_ERROR_WARNING);
         HAL_FDCAN_Stop(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle);
 
 #else
+        HAL_CAN_DeactivateNotification(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle,
+                                       CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_RX_FIFO1_MSG_PENDING
+                                           | CAN_IT_TX_MAILBOX_EMPTY);
         HAL_CAN_Stop(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle);
 #endif
+    }
+    if (CANModule_local == CANmodule) {
+        CANModule_local = NULL;
     }
 }
 
@@ -516,6 +527,10 @@ prv_read_can_received_msg(CAN_HandleTypeDef* hcan, uint32_t fifo, uint32_t fifo_
     uint32_t rcvMsgIdent;      /* identifier of the received message */
     uint8_t messageFound = 0;
 
+    if (CANModule_local == NULL) {
+        return;
+    }
+
 #ifdef CO_STM32_FDCAN_Driver
     static FDCAN_RxHeaderTypeDef rx_hdr;
     /* Read received message from FIFO */
@@ -630,6 +645,10 @@ HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef* hfdcan, uint32_t RxFifo1ITs) {
  */
 void
 HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t BufferIndexes) {
+    if (CANModule_local == NULL) {
+        return;
+    }
+
     CANModule_local->firstCANtxMessage = false;            /* First CAN message (bootup) was sent successfully */
     CANModule_local->bufferInhibitFlag = false;            /* Clear flag from previous message */
     if (CANModule_local->CANtxCount > 0U) {                /* Are there any new messages waiting to be send */
@@ -689,6 +708,10 @@ HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef* hcan) {
  */
 void
 CO_CANinterrupt_TX(CO_CANmodule_t* CANmodule, uint32_t MailboxNumber) {
+
+    if (CANmodule == NULL) {
+        return;
+    }
 
     CANmodule->firstCANtxMessage = false;            /* First CAN message (bootup) was sent successfully */
     CANmodule->bufferInhibitFlag = false;            /* Clear flag from previous message */
