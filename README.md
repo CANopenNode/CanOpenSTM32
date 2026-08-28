@@ -43,6 +43,8 @@ It also includes built-in programmer and virtual COM port for communication, hen
 > CanOpen demo works at `FDCAN1` port. Use connector *CN12*.
 > FDCAN IP block is same for any STM32G0xx MCU family, hence migration to your custom board should be straight-forward.
 
+*Note*: Example is CMake ready and can be configured with CMake build generator, Ninja build system and GCC compiler.
+
 
 ### [NUCLEO-F303ZE](https://www.st.com/en/evaluation-tools/nucleo-f303ze.html) / [NUCLEO-F072RB](https://www.st.com/en/evaluation-tools/nucleo-f072rb.html) + [MAX33040ESHLD](https://www.digikey.ie/en/products/detail/analog-devices-inc-maxim-integrated/MAX33040ESHLD/13558019)
 
