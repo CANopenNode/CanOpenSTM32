@@ -26,6 +26,10 @@ Tools required and in the path:
 
 > The fastest and most efficient way is to install the [STM32CubeCLT](https://www.st.com/en/development-tools/stm32cubeclt.html) package, which comes with minimum required set of tools for STM32 development with external IDE/CMake.
 
+![VS Code view](docs/vscode-screenshot.png)
+
+> VSCode preview with the syntax highlighting and intellisense provider. On the bottom we can see the CMake project detection with the correct preset.
+
 ## Repository directories
 
 - `.\CANopenNode` : Includes the stack implementation, for most of use cases you don't need to touch these files as they are constant between all the variations and ports (i.e. Linux, PIC, STM32 and etc.)
