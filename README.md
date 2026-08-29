@@ -4,9 +4,27 @@ CANopenSTM32 is a CANopen stack running on STM32 microcontroller based on [CANOp
 
 ## How to run demos
 
-Examples are developed in [STM32CubeIDE](https://www.st.com/en/development-tools/stm32cubeide.html) tool,
-official ST development studio for any STM32 microcontroller.
-You can directly open projects in the STM32CubeIDE and run examples on the relevant boards.
+### STM32CubeIDE - official project
+
+Examples are developed in [STM32CubeIDE](https://www.st.com/en/development-tools/stm32cubeide.html) tool, official ST development studio for any STM32 microcontroller. You can directly open projects in the STM32CubeIDE and run examples on the relevant boards.
+
+### CMake and VSCode
+
+Most of the examples also come with CMake build system and dedicated preset. Such examples can be directly opened with the VSCode (or any other software tool/terminal that can process cmake). The `.vscode` folder in each project provides:
+
+- Recommended extensions to install
+- C/C++ Intellisense configuration with CMake as a provider
+- Launch file to load/debug the application with STLink with `cortex-debug` extension
+- Tasks file with generic tasks to compile, run, list STLinks, etc
+
+Tools required and in the path:
+
+- CMake build configurator
+- Ninja build system
+- ARM GCC none eabi
+- STLink Server for programming/debugging
+
+> The fastest and most efficient way is to install the [STM32CubeCLT](https://www.st.com/en/development-tools/stm32cubeclt.html) package, which comes with minimum required set of tools for STM32 development with external IDE/CMake.
 
 ## Repository directories
 
@@ -16,7 +34,6 @@ You can directly open projects in the STM32CubeIDE and run examples on the relev
 - `.\Legacy` : It includes an older version of CANOpenSTM32 implementation, specifically made for FDCAN controllers, however it was stable and includes the FreeRTOS implementation. 
 
 ## Supported boards and MCUs
- 
 
 ### [STM32H735G-DK](https://www.st.com/en/evaluation-tools/stm32h735g-dk.html).
 It has many features of STM32H7xx series and includes 3 CAN transceivers on the board.
