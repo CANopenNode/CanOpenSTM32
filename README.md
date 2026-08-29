@@ -22,7 +22,34 @@ Tools required and in the path:
 - CMake build configurator
 - Ninja build system
 - ARM GCC none eabi
-- STLink Server for programming/debugging
+- STLink Server for programming/debugging and STM32CubeProgrammer CLI
+
+```
+# CMake
+cmake --version
+cmake version 4.3.1
+
+CMake suite maintained and supported by Kitware (kitware.com/cmake).
+
+# Ninja
+ninja --version
+1.13.2
+
+# ARM GCC
+arm-none-eabi-gcc --version
+arm-none-eabi-gcc (GNU Tools for STM32 14.3.rel1.20251027-0700) 14.3.1 20250623
+Copyright (C) 2024 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+# STM32CubeProgrammer CLI
+STM32_Programmer_CLI --version
+      -------------------------------------------------------------------
+                        STM32CubeProgrammer v2.23.0                  
+      -------------------------------------------------------------------
+
+STM32CubeProgrammer version: 2.23.0 
+```
 
 > The fastest and most efficient way is to install the [STM32CubeCLT](https://www.st.com/en/development-tools/stm32cubeclt.html) package, which comes with minimum required set of tools for STM32 development with external IDE/CMake.
 
