@@ -199,8 +199,8 @@ typedef struct {
  * \brief           Number of priority bits the CPU implements, used for correct value alignment.
  *                  If not provided, we try to use the value defined in the CPU header with the ARM Cortex-M defined macro.
  */
-#ifndef CO_LOCK_BASEPRI_PRIO_NVIC_PRIO_BITS
-#define CO_LOCK_BASEPRI_PRIO_NVIC_PRIO_BITS __NVIC_PRIO_BITS
+#ifndef CO_LOCK_BASEPRI_NVIC_PRIO_BITS
+#define CO_LOCK_BASEPRI_NVIC_PRIO_BITS __NVIC_PRIO_BITS
 #endif
 
 #if CO_LOCK_BASEPRI_ENABLE
@@ -209,7 +209,7 @@ typedef struct {
 #define CO_LOCK_GENERIC(localvarname)                                                                                  \
     do {                                                                                                               \
         uint32_t localvarname = __get_BASEPRI();                                                                       \
-        __set_BASEPRI_MAX(CO_LOCK_BASEPRI_PRIO_LEVEL << (8UL - CO_LOCK_BASEPRI_PRIO_NVIC_PRIO_BITS));                  \
+        __set_BASEPRI_MAX(CO_LOCK_BASEPRI_PRIO_LEVEL << (8UL - CO_LOCK_BASEPRI_NVIC_PRIO_BITS));                       \
         __DSB();                                                                                                       \
         __ISB();
 #define CO_UNLOCK_GENERIC(localvarname)                                                                                \
