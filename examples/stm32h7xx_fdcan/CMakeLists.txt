@@ -45,7 +45,7 @@ set(symbols_SYMB ${symbols_SYMB}
 
 # Core MCU flags, CPU, instruction set and FPU setup
 # Set the global compilation flags for all units
-include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/compiler-flags-cortex-m7.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/compiler-gcc-cortex-m7.cmake)
 
 # Add executable
 add_executable(${CMAKE_PROJECT_NAME})
