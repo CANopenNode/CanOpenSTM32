@@ -518,8 +518,9 @@ prv_read_can_received_msg(CAN_HandleTypeDef* hcan, uint32_t fifo, uint32_t fifo_
 
 #ifdef CO_STM32_FDCAN_Driver
     static FDCAN_RxHeaderTypeDef rx_hdr;
+    static uint8_t rx_data[64];
     /* Read received message from FIFO */
-    if (HAL_FDCAN_GetRxMessage(hfdcan, fifo, &rx_hdr, rcvMsg.data) != HAL_OK) {
+    if (HAL_FDCAN_GetRxMessage(hfdcan, fifo, &rx_hdr, rx_data) != HAL_OK) {
         return;
     }
     /* Setup identifier (with RTR) and length */
@@ -555,6 +556,9 @@ prv_read_can_received_msg(CAN_HandleTypeDef* hcan, uint32_t fifo, uint32_t fifo_
         default:
             rcvMsg.dlc = 0;
             break; /* Invalid length when more than 8 */
+    }
+    if (rcvMsg.dlc > 0) {
+        memcpy(rcvMsg.data, rx_data, rcvMsg.dlc);
     }
     rcvMsgIdent = rcvMsg.ident;
 #else
