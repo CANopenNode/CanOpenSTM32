@@ -40,9 +40,9 @@ static CO_CANmodule_t* CANModule_local = NULL; /* Local instance of global CAN m
 
 #ifdef CO_STM32_FDCAN_Driver
 #ifndef FDCAN_BUFFER_INDEXES
-#if defined (FDCAN_TX_BUFFER31)
+#if defined(FDCAN_TX_BUFFER31)
 #define FDCAN_BUFFER_INDEXES 0xFFFFFFFFU
-#elif defined (FDCAN_TX_BUFFER2)
+#elif defined(FDCAN_TX_BUFFER2)
 #define FDCAN_BUFFER_INDEXES FDCAN_TX_BUFFER0 | FDCAN_TX_BUFFER1 | FDCAN_TX_BUFFER2
 #else
 #define FDCAN_BUFFER_INDEXES 0xFFFFFFFFU
@@ -517,6 +517,14 @@ prv_read_can_received_msg(CAN_HandleTypeDef* hcan, uint32_t fifo, uint32_t fifo_
     uint8_t messageFound = 0;
 
 #ifdef CO_STM32_FDCAN_Driver
+
+    /*
+     * Write received message to the temporary 64-bytes buffer.
+     * This is to ensure that the CAN nodes that do not comply with the newer CAN standards
+     * don't send wrong message with the wrong DLC value. This is a safety measure to avoid buffer overflow.
+     * 
+     * Check the FDCAN implementation for STM32 in their respective reference manual.
+     */
     static FDCAN_RxHeaderTypeDef rx_hdr;
     static uint8_t rx_data[64];
     /* Read received message from FIFO */
@@ -657,7 +665,7 @@ HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t BufferI
                     CANModule_local->CANtxCount--;
                     CANModule_local->bufferInhibitFlag = buffer->syncFlag;
                 } else {
-                    break;  // if we could not send the message, break out of the loop (the tx buffers are full)
+                    break; // if we could not send the message, break out of the loop (the tx buffers are full)
                 }
             }
         }
@@ -716,9 +724,9 @@ CO_CANinterrupt_TX(CO_CANmodule_t* CANmodule, uint32_t MailboxNumber) {
                     buffer->bufferFull = false;
                     CANmodule->CANtxCount--;
                     CANmodule->bufferInhibitFlag = buffer->syncFlag;
+                } else {
+                    break; // if we could not send the message, break out of the loop (the tx buffers are full)
                 }
-                else
-                    break;  // if we could not send the message, break out of the loop (the tx buffers are full)
             }
         }
         CO_UNLOCK_CAN_SEND(CANmodule);
