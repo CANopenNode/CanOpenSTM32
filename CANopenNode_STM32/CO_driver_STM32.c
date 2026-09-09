@@ -623,6 +623,24 @@ HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef* hfdcan, uint32_t RxFifo1ITs) {
 }
 
 /**
+ * \brief           Error status callback
+ * \param[in]       hfdcan: pointer to an FDCAN_HandleTypeDef structure that contains
+ *                      the configuration information for the specified FDCAN.
+ * \param[in]       ErrorStatusITs indicates which Error Status interrupts are signaled.
+ *                      This parameter can be any combination of @arg FDCAN_Error_Status_Interrupts.
+ *
+ * Implements manual FDCAN Bus-Off recovery as described in
+ * https://community.st.com/stm32-mcus-60/how-to-recover-from-bus-off-state-with-fdcan-on-stm32-mcus-158678.
+ */
+void
+HAL_FDCAN_ErrorStatusCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t ErrorStatusITs) {
+    if ((ErrorStatusITs & FDCAN_IT_BUS_OFF) != 0) // If Bus-Off error occurred
+    {
+        CLEAR_BIT(hfdcan->Instance->CCCR, FDCAN_CCCR_INIT); // Clear INIT bit to recover from Bus-Off
+    }
+}
+
+/**
  * \brief           TX buffer has been well transmitted callback
  * \param[in]       hfdcan: pointer to an FDCAN_HandleTypeDef structure that contains
  *                      the configuration information for the specified FDCAN.
