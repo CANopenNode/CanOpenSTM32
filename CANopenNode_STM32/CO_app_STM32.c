@@ -27,8 +27,8 @@
 #include "CO_app_STM32.h"
 #include "CANopen.h"
 #include "main.h"
-#include <stdio.h>
 #include <inttypes.h>
+#include <stdio.h>
 
 #include "CO_storageBlank.h"
 #include "OD.h"
@@ -122,7 +122,7 @@ canopen_app_resetCommunication() {
     CO->CANmodule->CANnormal = false;
 
     /* Enter CAN configuration. */
-    CO_CANsetConfigurationMode((void*)canopenNodeSTM32);
+    CO_CANsetConfigurationMode(canopenNodeSTM32);
     CO_CANmodule_disable(CO->CANmodule);
 
     /* initialize CANopen */
@@ -176,7 +176,7 @@ canopen_app_resetCommunication() {
     }
 
     /* Configure Timer interrupt function for execution every 1 millisecond */
-    HAL_TIM_Base_Start_IT(canopenNodeSTM32->timerHandle); //1ms interrupt
+    HAL_TIM_Base_Start_IT(canopenNodeSTM32->timerHandle); // 1ms interrupt
 
     /* Configure CAN transmit and receive interrupt */
 
@@ -218,7 +218,7 @@ canopen_app_process() {
 
         if (reset_status == CO_RESET_COMM) {
             /* delete objects from memory */
-        	HAL_TIM_Base_Stop_IT(canopenNodeSTM32->timerHandle);
+            HAL_TIM_Base_Stop_IT(canopenNodeSTM32->timerHandle);
             CO_CANsetConfigurationMode((void*)canopenNodeSTM32);
             CO_delete(CO);
             log_printf("CANopenNode Reset Communication request\n");
