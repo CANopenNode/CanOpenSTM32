@@ -384,14 +384,18 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
     CANmodule->errOld = 0U;
 
     /* Reset all variables */
-    for (uint16_t i = 0U; i < rxSize; i++) {
-        rxArray[i].ident = 0U;
-        rxArray[i].mask = 0xFFFFU;
-        rxArray[i].object = NULL;
-        rxArray[i].CANrx_callback = NULL;
+    for (uint16_t idx = 0U; idx < rxSize; idx++) {
+        CO_CANrx_t* const msg = &rxArray[idx];
+
+        msg->ident = 0U;
+        msg->mask = 0xFFFFU;
+        msg->object = NULL;
+        msg->CANrx_callback = NULL;
     }
-    for (uint16_t i = 0U; i < txSize; i++) {
-        txArray[i].bufferFull = false;
+    for (uint16_t idx = 0U; idx < txSize; idx++) {
+        CO_CANtx_t* const msg = &txArray[idx];
+
+        msg->bufferFull = false;
     }
 
     /***************************************/
@@ -585,9 +589,8 @@ CO_CANclearPendingSyncPDOs(CO_CANmodule_t* CANmodule) {
     }
     /* delete also pending synchronous TPDOs in TX buffers */
     if (CANmodule->CANtxCount > 0) {
-        uint16_t i;
         CO_CANtx_t* buffer = &CANmodule->txArray[0];
-        for (i = CANmodule->txSize; i > 0U; i--) {
+        for (uint16_t idx = CANmodule->txSize; idx > 0U; idx--) {
             if (buffer->bufferFull) {
                 if (buffer->syncFlag) {
                     buffer->bufferFull = false;
