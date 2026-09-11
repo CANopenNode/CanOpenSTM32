@@ -258,20 +258,20 @@ prv_read_can_received_msg(CO_CANmodule_t* CANmodule, uint32_t fifo, uint32_t fif
  */
 static void
 prv_process_tx_complete(CO_CANmodule_t* CANmodule, uint32_t MailboxNumber) {
-    CANmodule->firstCANtxMessage = false;            /* First CAN message (bootup) was sent successfully */
-    CANmodule->bufferInhibitFlag = false;            /* Clear flag from previous message */
+    CANmodule->firstCANtxMessage = false; /* First CAN message (bootup) was sent successfully */
+    CANmodule->bufferInhibitFlag = false; /* Clear flag from previous message */
+
+    /*
+     * Try to send more buffers, process all empty ones
+     *
+     * This function is always called from interrupt,
+     * however to make sure no preemption can happen, interrupts are anyway locked
+     * (unless you can guarantee no higher priority interrupt will try to access to CAN instance and send data,
+     *  then no need to lock interrupts..)
+     */
+    CO_LOCK_CAN_SEND(CANmodule);
     if (CANmodule->CANtxCount > 0U) {                /* Are there any new messages waiting to be send */
         CO_CANtx_t* buffer = &CANmodule->txArray[0]; /* Start with first buffer handle */
-
-        /*
-         * Try to send more buffers, process all empty ones
-         *
-         * This function is always called from interrupt,
-         * however to make sure no preemption can happen, interrupts are anyway locked
-         * (unless you can guarantee no higher priority interrupt will try to access to CAN instance and send data,
-         *  then no need to lock interrupts..)
-         */
-        CO_LOCK_CAN_SEND(CANmodule);
         for (size_t idx = CANmodule->txSize; idx > 0U; --idx, ++buffer) {
             /* Try to send message */
             if (buffer->bufferFull) {
@@ -284,8 +284,8 @@ prv_process_tx_complete(CO_CANmodule_t* CANmodule, uint32_t MailboxNumber) {
                 }
             }
         }
-        CO_UNLOCK_CAN_SEND(CANmodule);
     }
+    CO_UNLOCK_CAN_SEND(CANmodule);
 }
 
 /******************************************************************************/
