@@ -42,14 +42,26 @@ CANopenNodeSTM32*
 #endif
 
 /* default values for CO_CANopenInit() */
+#ifndef NMT_CONTROL
 #define NMT_CONTROL                                                                                                    \
     CO_NMT_STARTUP_TO_OPERATIONAL                                                                                      \
     | CO_NMT_ERR_ON_ERR_REG | CO_ERR_REG_GENERIC_ERR | CO_ERR_REG_COMMUNICATION
-#define FIRST_HB_TIME        500
+#endif
+#ifndef FIRST_HB_TIME
+#define FIRST_HB_TIME 500
+#endif
+#ifndef SDO_SRV_TIMEOUT_TIME
 #define SDO_SRV_TIMEOUT_TIME 1000
+#endif
+#ifndef SDO_CLI_TIMEOUT_TIME
 #define SDO_CLI_TIMEOUT_TIME 500
-#define SDO_CLI_BLOCK        false
-#define OD_STATUS_BITS       NULL
+#endif
+#ifndef SDO_CLI_BLOCK
+#define SDO_CLI_BLOCK false
+#endif
+#ifndef OD_STATUS_BITS
+#define OD_STATUS_BITS NULL
+#endif
 
 /* Global variables and objects */
 CO_t* CO = NULL; /* CANopen object */
