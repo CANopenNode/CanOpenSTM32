@@ -35,18 +35,15 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// Determining the CANOpen Driver
+// Determining the CANopen Driver
 
 #if defined(FDCAN) || defined(FDCAN1) || defined(FDCAN2) || defined(FDCAN3)
 #define CO_STM32_FDCAN_Driver 1
 #elif defined(CAN) || defined(CAN1) || defined(CAN2) || defined(CAN3)
 #define CO_STM32_CAN_Driver 1
 #else
-#error This STM32 Do not support CAN or FDCAN
+#error This STM32 does not support CAN or FDCAN
 #endif
-
-/* Enable CRC-16 calculation. Required by CO_storageEeprom / CO_eeprom_STM32. */
-#define CO_CONFIG_CRC16 (CO_CONFIG_CRC16_ENABLE)
 
 #ifdef CO_DRIVER_CUSTOM
 #include "CO_driver_custom.h"
@@ -58,6 +55,16 @@ extern "C" {
 
 /* Stack configuration override default values.
  * For more information see file CO_config.h. */
+
+/* Configure storage */
+#ifndef CO_CONFIG_STORAGE
+#define CO_CONFIG_STORAGE (CO_CONFIG_STORAGE_ENABLE)
+#endif
+
+/* Enable CRC-16 calculation. Required by CO_storageEeprom / CO_eeprom_STM32. */
+#if (((CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE) != 0)
+#define CO_CONFIG_CRC16 (CO_CONFIG_CRC16_ENABLE)
+#endif
 
 /* Basic definitions. If big endian, CO_SWAP_xx macros must swap bytes. */
 #define CO_LITTLE_ENDIAN
@@ -75,7 +82,7 @@ typedef double float64_t;
 /**
  * \brief           CAN RX message for platform
  *
- * This is platform specific one
+ * This is platform specific
  */
 typedef struct {
     uint32_t ident;  /*!< Standard identifier */
@@ -120,11 +127,6 @@ typedef struct {
     volatile uint16_t CANtxCount;
     uint32_t errOld;
 
-    /* STM32 specific features */
-    uint32_t primask_send; /* Primask register for interrupts for send operation */
-    uint32_t primask_emcy; /* Primask register for interrupts for emergency operation */
-    uint32_t primask_od;   /* Primask register for interrupts for send operation */
-
 } CO_CANmodule_t;
 
 /* Data storage object for one entry */
@@ -135,37 +137,12 @@ typedef struct {
     uint8_t attr;
     /* Additional variables (target specific) */
     void* addrNV;
-    void *   storageModule;
+    void* storageModule;
     uint16_t crc;
-    size_t   eepromAddrSignature;
-    size_t   eepromAddr;
-    size_t   offset;
+    size_t eepromAddrSignature;
+    size_t eepromAddr;
+    size_t offset;
 } CO_storage_entry_t;
-
-/* (un)lock critical section in CO_CANsend() */
-// Why disabling the whole Interrupt
-#define CO_LOCK_CAN_SEND(CAN_MODULE)                                                                                   \
-    do {                                                                                                               \
-        (CAN_MODULE)->primask_send = __get_PRIMASK();                                                                  \
-        __disable_irq();                                                                                               \
-    } while (0)
-#define CO_UNLOCK_CAN_SEND(CAN_MODULE) __set_PRIMASK((CAN_MODULE)->primask_send)
-
-/* (un)lock critical section in CO_errorReport() or CO_errorReset() */
-#define CO_LOCK_EMCY(CAN_MODULE)                                                                                       \
-    do {                                                                                                               \
-        (CAN_MODULE)->primask_emcy = __get_PRIMASK();                                                                  \
-        __disable_irq();                                                                                               \
-    } while (0)
-#define CO_UNLOCK_EMCY(CAN_MODULE) __set_PRIMASK((CAN_MODULE)->primask_emcy)
-
-/* (un)lock critical section when accessing Object Dictionary */
-#define CO_LOCK_OD(CAN_MODULE)                                                                                         \
-    do {                                                                                                               \
-        (CAN_MODULE)->primask_od = __get_PRIMASK();                                                                    \
-        __disable_irq();                                                                                               \
-    } while (0)
-#define CO_UNLOCK_OD(CAN_MODULE) __set_PRIMASK((CAN_MODULE)->primask_od)
 
 /* Synchronization between CAN receive and message processing threads. */
 #define CO_MemoryBarrier()
@@ -181,6 +158,102 @@ typedef struct {
         rxNew = NULL;                                                                                                  \
     } while (0)
 
+/*
+ * With the STM32 port, we can lock interrupts in at least 2 ways:
+ *
+ *  - Global interrupt disable with the PRIMASK register
+ *  - Selective interrupt disable with the BASEPRI register (when available in the core),
+ *          where all interrupts with a numerically greater priority number than the max priority level become disabled.
+ *
+ * Imagine the following interrupt priority setup. Higher on the list means higher priority (logical priority number).
+ *
+ * | prio   | IRQ name  |
+ * | 0      | TIM1      |
+ * | ..     | ..        |
+ * | 4      | FDCAN     |
+ * | 5      | ...       |
+ * ...
+ * | 15     |           |
+ *
+ * Setting \ref CO_LOCK_BASEPRI_PRIO_LEVEL to 4 will disable all interrupts that
+ * have an interrupt priority number of 4 or greater (all lower priority).
+ *
+ * When the CANopen application needs to block its own CO-dependent interrupts,
+ * we may still want to keep, for example, a timer interrupt running (for external signal processing)
+ * since it is irrelevant to the CO application.
+ *
+ * Use the selective BASEPRI interrupt system at your own responsibility.
+ * For simplicity, disable BASEPRI and use the global interrupt control with the PRIMASK register instead.
+ */
+
+/**
+ * \brief           Enable or disable selective interrupt disable with the BASEPRI register
+ * \note            This only works for CPUs with BASEPRI enabled, and will throw a compilation error otherwise
+ */
+#ifndef CO_LOCK_BASEPRI_ENABLE
+#define CO_LOCK_BASEPRI_ENABLE 0
+#endif
+
+/**
+ * \brief           Defines the priority level at which interrupts are disabled with the BASEPRI register.
+ *                  Any interrupt whose priority number is equal to or greater than this value will be disabled.
+ *                  (Remember, a lower number means a logically higher interrupt priority.)
+ *
+ * \note            To make sure this operation works properly, the system shall configure the preemptive NVIC config
+ *                  correctly at the application level. CO locking is not designed to take this into account.
+ *
+ *                  Responsibility lies entirely with the user.
+ */
+#ifndef CO_LOCK_BASEPRI_PRIO_LEVEL
+#define CO_LOCK_BASEPRI_PRIO_LEVEL 0
+#endif
+
+/**
+ * \brief           Number of priority bits the CPU implements, used for correct value alignment.
+ *                  If not provided, we try to use the value defined in the CPU header with the ARM Cortex-M defined macro.
+ */
+#ifndef CO_LOCK_BASEPRI_NVIC_PRIO_BITS
+#define CO_LOCK_BASEPRI_NVIC_PRIO_BITS __NVIC_PRIO_BITS
+#endif
+
+#if CO_LOCK_BASEPRI_ENABLE
+
+/* Setup the generic interrupt management system */
+#define CO_LOCK_GENERIC(localvarname)                                                                                  \
+    do {                                                                                                               \
+        uint32_t localvarname = __get_BASEPRI();                                                                       \
+        __set_BASEPRI_MAX(CO_LOCK_BASEPRI_PRIO_LEVEL << (8UL - CO_LOCK_BASEPRI_NVIC_PRIO_BITS));                       \
+        __DSB();                                                                                                       \
+        __ISB();
+#define CO_UNLOCK_GENERIC(localvarname)                                                                                \
+    __set_BASEPRI(localvarname);                                                                                       \
+    __DSB();                                                                                                           \
+    __ISB();                                                                                                           \
+    }                                                                                                                  \
+    while (0)
+#else
+/* Setup the generic interrupt management system */
+#define CO_LOCK_GENERIC(localvarname)                                                                                  \
+    do {                                                                                                               \
+        uint32_t localvarname = __get_PRIMASK();                                                                       \
+        __disable_irq();
+#define CO_UNLOCK_GENERIC(localvarname)                                                                                \
+    __set_PRIMASK(localvarname);                                                                                       \
+    }                                                                                                                  \
+    while (0)
+#endif /* */
+
+/* (un)lock critical section in CO_CANsend() */
+#define CO_LOCK_CAN_SEND(CAN_MODULE)   CO_LOCK_GENERIC(primask_send)
+#define CO_UNLOCK_CAN_SEND(CAN_MODULE) CO_UNLOCK_GENERIC(primask_send)
+
+/* (un)lock critical section in CO_errorReport() or CO_errorReset() */
+#define CO_LOCK_EMCY(CAN_MODULE)       CO_LOCK_GENERIC(primask_emcy)
+#define CO_UNLOCK_EMCY(CAN_MODULE)     CO_UNLOCK_GENERIC(primask_emcy)
+
+/* (un)lock critical section when accessing Object Dictionary */
+#define CO_LOCK_OD(CAN_MODULE)         CO_LOCK_GENERIC(primask_od)
+#define CO_UNLOCK_OD(CAN_MODULE)       CO_UNLOCK_GENERIC(primask_od)
 
 #ifdef __cplusplus
 }

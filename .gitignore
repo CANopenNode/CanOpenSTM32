@@ -25,7 +25,12 @@
 *.txt
 *.launch
 !docs/*.txt
+!**/CMakeLists.txt
+!**/CMakePresets.json
 RTE/
+
+# CMake build output
+build/
 
 *debug
 

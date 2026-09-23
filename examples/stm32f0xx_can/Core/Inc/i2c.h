@@ -35,8 +35,9 @@ extern "C" {
 extern I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN Private defines */
+#define HI2C_EEPROM    &hi2c1 // i2c handle used for eeprom device
 #define I2C_TIMEOUT_MS 100
-#define HI2C_EEPROM &hi2c1		// i2c handle used for eeprom device
+
 /* USER CODE END Private defines */
 
 void MX_I2C1_Init(void);

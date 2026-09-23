@@ -136,6 +136,8 @@ void Error_Handler(void);
 #define FDCAN1_STBY_GPIO_Port GPIOE
 #define FDCAN2_STBY_Pin GPIO_PIN_1
 #define FDCAN2_STBY_GPIO_Port GPIOE
+#define CAN_CFG_Pin GPIO_PIN_3
+#define CAN_CFG_GPIO_Port GPIOE
 #define LCD_CS_OD_Pin GPIO_PIN_8
 #define LCD_CS_OD_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */

@@ -38,11 +38,16 @@ static CO_CANmodule_t* CANModule_local = NULL; /* Local instance of global CAN m
 #define CANID_MASK 0x07FF /*!< CAN standard ID mask */
 #define FLAG_RTR   0x8000 /*!< RTR flag, part of identifier */
 
-#ifndef BUFFERE_INDEXES
-#ifdef STM32H5xx_HAL_CONF_H
-#define BUFFERE_INDEXES FDCAN_TX_BUFFER0 | FDCAN_TX_BUFFER1 | FDCAN_TX_BUFFER2
+#ifdef CO_STM32_FDCAN_Driver
+#ifndef FDCAN_BUFFER_INDEXES
+#if defined(FDCAN_TX_BUFFER31)
+#define FDCAN_BUFFER_INDEXES 0xFFFFFFFFU
+#elif defined(FDCAN_TX_BUFFER2)
+#define FDCAN_BUFFER_INDEXES FDCAN_TX_BUFFER0 | FDCAN_TX_BUFFER1 | FDCAN_TX_BUFFER2
 #else
-#define BUFFERE_INDEXES 0xFFFFFFFF
+#define FDCAN_BUFFER_INDEXES 0xFFFFFFFFU
+#warning "FDCAN_BUFFER_INDEXES not defined"
+#endif
 #endif
 #endif
 
@@ -170,7 +175,7 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
                                            | FDCAN_IT_TX_COMPLETE | FDCAN_IT_TX_FIFO_EMPTY | FDCAN_IT_BUS_OFF
                                            | FDCAN_IT_ARB_PROTOCOL_ERROR | FDCAN_IT_DATA_PROTOCOL_ERROR
                                            | FDCAN_IT_ERROR_PASSIVE | FDCAN_IT_ERROR_WARNING,
-                                       BUFFERE_INDEXES)
+                                       FDCAN_BUFFER_INDEXES)
         != HAL_OK) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
@@ -411,7 +416,7 @@ CO_CANclearPendingSyncPDOs(CO_CANmodule_t* CANmodule) {
 /******************************************************************************/
 /* Get error counters from the module. If necessary, function may use
     * different way to determine errors. */
-// static uint16_t rxErrors = 0, txErrors = 0, overflow = 0;
+static uint16_t rxErrors = 0, txErrors = 0, overflow = 0;
 
 void
 CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
@@ -512,9 +517,18 @@ prv_read_can_received_msg(CAN_HandleTypeDef* hcan, uint32_t fifo, uint32_t fifo_
     uint8_t messageFound = 0;
 
 #ifdef CO_STM32_FDCAN_Driver
+
+    /*
+     * Write received message to the temporary 64-bytes buffer.
+     * This is to ensure that the CAN nodes that do not comply with the newer CAN standards
+     * don't send wrong message with the wrong DLC value. This is a safety measure to avoid buffer overflow.
+     * 
+     * Check the FDCAN implementation for STM32 in their respective reference manual.
+     */
     static FDCAN_RxHeaderTypeDef rx_hdr;
+    static uint8_t rx_data[64];
     /* Read received message from FIFO */
-    if (HAL_FDCAN_GetRxMessage(hfdcan, fifo, &rx_hdr, rcvMsg.data) != HAL_OK) {
+    if (HAL_FDCAN_GetRxMessage(hfdcan, fifo, &rx_hdr, rx_data) != HAL_OK) {
         return;
     }
     /* Setup identifier (with RTR) and length */
@@ -550,6 +564,9 @@ prv_read_can_received_msg(CAN_HandleTypeDef* hcan, uint32_t fifo, uint32_t fifo_
         default:
             rcvMsg.dlc = 0;
             break; /* Invalid length when more than 8 */
+    }
+    if (rcvMsg.dlc > 0) {
+        memcpy(rcvMsg.data, rx_data, rcvMsg.dlc);
     }
     rcvMsgIdent = rcvMsg.ident;
 #else
@@ -648,7 +665,7 @@ HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t BufferI
                     CANModule_local->CANtxCount--;
                     CANModule_local->bufferInhibitFlag = buffer->syncFlag;
                 } else {
-                    break;  // if we could not send the message, break out of the loop (the tx buffers are full)
+                    break; // if we could not send the message, break out of the loop (the tx buffers are full)
                 }
             }
         }
@@ -707,9 +724,9 @@ CO_CANinterrupt_TX(CO_CANmodule_t* CANmodule, uint32_t MailboxNumber) {
                     buffer->bufferFull = false;
                     CANmodule->CANtxCount--;
                     CANmodule->bufferInhibitFlag = buffer->syncFlag;
+                } else {
+                    break; // if we could not send the message, break out of the loop (the tx buffers are full)
                 }
-                else
-                    break;  // if we could not send the message, break out of the loop (the tx buffers are full)
             }
         }
         CO_UNLOCK_CAN_SEND(CANmodule);

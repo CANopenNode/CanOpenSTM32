@@ -103,6 +103,7 @@ int main(void)
   MX_USB_DRD_FS_PCD_Init();
   MX_TIM17_Init();
   /* USER CODE BEGIN 2 */
+
   // Initialize the CANOpen Stack
 
   /* USER CODE END 2 */

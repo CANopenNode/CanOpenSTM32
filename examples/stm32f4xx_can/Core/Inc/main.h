@@ -36,7 +36,7 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-extern I2C_HandleTypeDef hi2c1;
+extern I2C_HandleTypeDef hi2c3;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -95,6 +95,8 @@ void Error_Handler(void);
 #define LD6_GPIO_Port GPIOD
 #define I2S3_MCK_Pin GPIO_PIN_7
 #define I2S3_MCK_GPIO_Port GPIOC
+#define CAN_CFG_Pin GPIO_PIN_8
+#define CAN_CFG_GPIO_Port GPIOC
 #define VBUS_FS_Pin GPIO_PIN_9
 #define VBUS_FS_GPIO_Port GPIOA
 #define OTG_FS_ID_Pin GPIO_PIN_10
@@ -124,8 +126,8 @@ void Error_Handler(void);
 #define MEMS_INT2_Pin GPIO_PIN_1
 #define MEMS_INT2_GPIO_Port GPIOE
 /* USER CODE BEGIN Private defines */
-#define HI2C_EEPROM &hi2c1		// i2c handle used for eeprom device
-#define I2C_TIMEOUT_MS 100
+#define HI2C_EEPROM &hi2c3		// i2c handle used for eeprom device
+#define I2C_TIMEOUT_MS 100		// i2c timeout value
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
