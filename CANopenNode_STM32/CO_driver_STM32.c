@@ -534,93 +534,104 @@ prv_read_can_received_msg(CAN_HandleTypeDef* hcan, uint32_t fifo, uint32_t fifo_
     uint8_t messageFound = 0;
 
 #ifdef CO_STM32_FDCAN_Driver
-
-    /*
-     * Write received message to the temporary 64-bytes buffer.
-     * This is to ensure that the CAN nodes that do not comply with the newer CAN standards
-     * don't send wrong message with the wrong DLC value. This is a safety measure to avoid buffer overflow.
-     * 
-     * Check the FDCAN implementation for STM32 in their respective reference manual.
-     */
-    static FDCAN_RxHeaderTypeDef rx_hdr;
-    static uint8_t rx_data[64];
-    /* Read received message from FIFO */
-    if (HAL_FDCAN_GetRxMessage(hfdcan, fifo, &rx_hdr, rx_data) != HAL_OK) {
-        return;
-    }
-    /* Setup identifier (with RTR) and length */
-    rcvMsg.ident = rx_hdr.Identifier | (rx_hdr.RxFrameType == FDCAN_REMOTE_FRAME ? FLAG_RTR : 0x00);
-    switch (rx_hdr.DataLength) {
-        case FDCAN_DLC_BYTES_0:
-            rcvMsg.dlc = 0;
-            break;
-        case FDCAN_DLC_BYTES_1:
-            rcvMsg.dlc = 1;
-            break;
-        case FDCAN_DLC_BYTES_2:
-            rcvMsg.dlc = 2;
-            break;
-        case FDCAN_DLC_BYTES_3:
-            rcvMsg.dlc = 3;
-            break;
-        case FDCAN_DLC_BYTES_4:
-            rcvMsg.dlc = 4;
-            break;
-        case FDCAN_DLC_BYTES_5:
-            rcvMsg.dlc = 5;
-            break;
-        case FDCAN_DLC_BYTES_6:
-            rcvMsg.dlc = 6;
-            break;
-        case FDCAN_DLC_BYTES_7:
-            rcvMsg.dlc = 7;
-            break;
-        case FDCAN_DLC_BYTES_8:
-            rcvMsg.dlc = 8;
-            break;
-        default:
-            rcvMsg.dlc = 0;
-            break; /* Invalid length when more than 8 */
-    }
-    if (rcvMsg.dlc > 0) {
-        memcpy(rcvMsg.data, rx_data, rcvMsg.dlc);
-    }
-    rcvMsgIdent = rcvMsg.ident;
+    uint32_t pending = HAL_FDCAN_GetRxFifoFillLevel(hfdcan, fifo);
 #else
-    static CAN_RxHeaderTypeDef rx_hdr;
-    /* Read received message from FIFO */
-    if (HAL_CAN_GetRxMessage(hcan, fifo, &rx_hdr, rcvMsg.data) != HAL_OK) {
-        return;
-    }
-    /* Setup identifier (with RTR) and length */
-    rcvMsg.ident = rx_hdr.StdId | (rx_hdr.RTR == CAN_RTR_REMOTE ? FLAG_RTR : 0x00);
-    rcvMsg.dlc = rx_hdr.DLC;
-    rcvMsgIdent = rcvMsg.ident;
+    uint32_t pending = HAL_CAN_GetRxFifoFillLevel(hcan, fifo);
 #endif
 
-    /*
-     * Hardware filters are not used for the moment
-     * \todo: Implement hardware filters...
-     */
-    if (CANModule_local->useCANrxFilters) {
-        __BKPT(0);
-    } else {
+    while (pending > 0U) {
+        --pending;
+#ifdef CO_STM32_FDCAN_Driver
+
         /*
-         * We are not using hardware filters, hence it is necessary
-         * to manually match received message ID with all buffers
+         * Write received message to the temporary 64-bytes buffer.
+         * This is to ensure that the CAN nodes that do not comply with the newer CAN standards
+         * don't send wrong message with the wrong DLC value. This is a safety measure to avoid buffer overflow.
+         *
+         * Check the FDCAN implementation for STM32 in their respective reference manual.
          */
-        buffer = CANModule_local->rxArray;
-        for (index = CANModule_local->rxSize; index > 0U; --index, ++buffer) {
-            if (((rcvMsgIdent ^ buffer->ident) & buffer->mask) == 0U) {
-                messageFound = 1;
+        static FDCAN_RxHeaderTypeDef rx_hdr;
+        static uint8_t rx_data[64];
+        /* Read received message from FIFO */
+        if (HAL_FDCAN_GetRxMessage(hfdcan, fifo, &rx_hdr, rx_data) != HAL_OK) {
+            break;
+        }
+        /* Setup identifier (with RTR) and length */
+        rcvMsg.ident = rx_hdr.Identifier | (rx_hdr.RxFrameType == FDCAN_REMOTE_FRAME ? FLAG_RTR : 0x00);
+        switch (rx_hdr.DataLength) {
+            case FDCAN_DLC_BYTES_0:
+                rcvMsg.dlc = 0;
                 break;
+            case FDCAN_DLC_BYTES_1:
+                rcvMsg.dlc = 1;
+                break;
+            case FDCAN_DLC_BYTES_2:
+                rcvMsg.dlc = 2;
+                break;
+            case FDCAN_DLC_BYTES_3:
+                rcvMsg.dlc = 3;
+                break;
+            case FDCAN_DLC_BYTES_4:
+                rcvMsg.dlc = 4;
+                break;
+            case FDCAN_DLC_BYTES_5:
+                rcvMsg.dlc = 5;
+                break;
+            case FDCAN_DLC_BYTES_6:
+                rcvMsg.dlc = 6;
+                break;
+            case FDCAN_DLC_BYTES_7:
+                rcvMsg.dlc = 7;
+                break;
+            case FDCAN_DLC_BYTES_8:
+                rcvMsg.dlc = 8;
+                break;
+            default:
+                rcvMsg.dlc = 0;
+                break; /* Invalid length when more than 8 */
+        }
+        if (rcvMsg.dlc > 0) {
+            memcpy(rcvMsg.data, rx_data, rcvMsg.dlc);
+        }
+        rcvMsgIdent = rcvMsg.ident;
+#else
+        static CAN_RxHeaderTypeDef rx_hdr;
+        /* Read received message from FIFO */
+        if (HAL_CAN_GetRxMessage(hcan, fifo, &rx_hdr, rcvMsg.data) != HAL_OK) {
+            break;
+        }
+        /* Setup identifier (with RTR) and length */
+        rcvMsg.ident = rx_hdr.StdId | (rx_hdr.RTR == CAN_RTR_REMOTE ? FLAG_RTR : 0x00);
+        rcvMsg.dlc = rx_hdr.DLC;
+        rcvMsgIdent = rcvMsg.ident;
+#endif
+
+        /*
+         * Hardware filters are not used for the moment
+         * \todo: Implement hardware filters...
+         */
+        if (CANModule_local->useCANrxFilters) {
+            __BKPT(0);
+        } else {
+            /*
+             * We are not using hardware filters, hence it is necessary
+             * to manually match received message ID with all buffers
+             */
+            buffer = CANModule_local->rxArray;
+            for (index = CANModule_local->rxSize; index > 0U; --index, ++buffer) {
+                if (((rcvMsgIdent ^ buffer->ident) & buffer->mask) == 0U) {
+                    messageFound = 1;
+                    break;
+                }
             }
         }
-    }
 
-    /* Call specific function, which will process the message */
-    if (messageFound && buffer != NULL && buffer->CANrx_callback != NULL) {
-        buffer->CANrx_callback(buffer->object, (void*)&rcvMsg);
+        /* Call specific function, which will process the message */
+        if (messageFound && buffer != NULL && buffer->CANrx_callback != NULL) {
+            buffer->CANrx_callback(buffer->object, (void*)&rcvMsg);
+        }
+        messageFound = 0;
+        buffer = NULL;
     }
 }
 
