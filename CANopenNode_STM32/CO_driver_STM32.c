@@ -453,6 +453,17 @@ CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
             if (err & FDCAN_PSR_EP) {
                 status |= CO_CAN_ERRRX_PASSIVE | CO_CAN_ERRTX_PASSIVE;
             }
+
+            /* If transmitter is not passive, clear also the (non-latching) TX overflow.
+             * It is set by CO_CANsend(), when the driver TX buffer was already full. It
+             * must stay set while the bus is in a degraded state, so CO_EM_process() can
+             * report it, but it must not latch forever - otherwise CO_EM_CAN_TX_OVERFLOW
+             * keeps the communication bit of the error register (0x1001) set and, with
+             * CO_NMT_ERR_ON_ERR_REG, the node can never enter NMT operational state.
+             * Same pattern as CANopenNode/example/CO_driver_blank.c. */
+            if ((status & CO_CAN_ERRTX_PASSIVE) == 0U) {
+                status &= 0xFFFFU ^ CO_CAN_ERRTX_OVERFLOW;
+            }
         }
 
         CANmodule->CANerrorStatus = status;
@@ -485,6 +496,12 @@ CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
 
             if (err & CAN_ESR_EPVF) {
                 status |= CO_CAN_ERRRX_PASSIVE | CO_CAN_ERRTX_PASSIVE;
+            }
+
+            /* If transmitter is not passive, clear also the (non-latching) TX overflow,
+             * see the CO_STM32_FDCAN_Driver branch above. */
+            if ((status & CO_CAN_ERRTX_PASSIVE) == 0U) {
+                status &= 0xFFFFU ^ CO_CAN_ERRTX_OVERFLOW;
             }
         }
 
