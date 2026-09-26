@@ -116,7 +116,8 @@ static void prv_fdcan_bus_off_check_reset(FDCAN_HandleTypeDef* hfdcan);
 
 /**
  * \brief           Send CAN message to network
- * This function must be called with atomic access.
+ *
+ * \note            This function must be called with atomic access.
  *
  * \param[in]       CANmodule: CAN module instance
  * \param[in]       buffer: Pointer to buffer to transmit
@@ -147,7 +148,7 @@ prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
         tx_hdr.DataLength = FDCAN_DLC_NUM_TO_PERIPH_VALUE(buffer->DLC);
 
         /* Now add message to FIFO. Should not fail */
-        success = HAL_FDCAN_AddMessageToTxFifoQ(GET_CAN_PERIPH_HANDLE(CANmodule), &tx_hdr, buffer->data) == HAL_OK;
+        success = HAL_FDCAN_AddMessageToTxFifoQ(GET_CAN_PERIPH_HANDLE(CANmodule), &tx_hdr, buffer->data);
     }
 #else
     static CAN_TxHeaderTypeDef tx_hdr;
@@ -166,11 +167,13 @@ prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
         tx_hdr.RTR = (buffer->ident & FLAG_RTR) ? CAN_RTR_REMOTE : CAN_RTR_DATA;
 
         /* Now add message to FIFO. Should not fail */
-        success =
-            HAL_CAN_AddTxMessage(GET_CAN_PERIPH_HANDLE(CANmodule), &tx_hdr, buffer->data, &TxMailboxNum) == HAL_OK;
+        success = HAL_CAN_AddTxMessage(GET_CAN_PERIPH_HANDLE(CANmodule), &tx_hdr, buffer->data, &TxMailboxNum);
     }
 #endif
-    return success;
+    if (success == HAL_OK) {
+        /* TODO: Message was well inserted in the queue, mark it as pending send */
+    }
+    return success == HAL_OK;
 }
 
 /**
@@ -740,23 +743,6 @@ HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef* hfdcan, uint32_t RxFifo1ITs) {
 }
 
 /**
- * \brief           Error status callback
- * \param[in]       hfdcan: pointer to an FDCAN_HandleTypeDef structure that contains
- *                      the configuration information for the specified FDCAN.
- * \param[in]       ErrorStatusITs indicates which Error Status interrupts are signaled.
- *                      This parameter can be any combination of @arg FDCAN_Error_Status_Interrupts.
- *
- * Implements manual FDCAN Bus-Off recovery as described in
- * https://community.st.com/stm32-mcus-60/how-to-recover-from-bus-off-state-with-fdcan-on-stm32-mcus-158678.
- */
-void
-HAL_FDCAN_ErrorStatusCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t ErrorStatusITs) {
-    if ((ErrorStatusITs & FDCAN_IT_BUS_OFF) != 0) {
-        CLEAR_BIT(hfdcan->Instance->CCCR, FDCAN_CCCR_INIT); // Clear INIT bit to recover from Bus-Off
-    }
-}
-
-/**
  * \brief           TX buffer has been well transmitted callback
  * \param[in]       hfdcan: pointer to an FDCAN_HandleTypeDef structure that contains
  *                      the configuration information for the specified FDCAN.
@@ -782,19 +768,25 @@ HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef* hfdcan) {
 
 /**
  * \brief           Error status callback
- *
  * \param[in]       hfdcan: pointer to an FDCAN_HandleTypeDef structure that contains
  *                      the configuration information for the specified FDCAN.
- * \param[in]       ErrorStatusITs: indicates which Error Status interrupts are signaled.
- *                      This parameter can be any combination of \arg FDCAN_Error_Status_Interrupts
+ * \param[in]       ErrorStatusITs indicates which Error Status interrupts are signaled.
+ *                      This parameter can be any combination of @arg FDCAN_Error_Status_Interrupts.
+ *
+ * Implements manual FDCAN Bus-Off recovery as described in
+ * https://community.st.com/stm32-mcus-60/how-to-recover-from-bus-off-state-with-fdcan-on-stm32-mcus-158678.
  */
 void
 HAL_FDCAN_ErrorStatusCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t ErrorStatusITs) {
     (void)hfdcan;
     (void)ErrorStatusITs;
 
-    /* Do we do it here or in process only? */
-    /* prv_fdcan_bus_off_check_reset(hfdcan); */
+    if ((ErrorStatusITs & FDCAN_IT_BUS_OFF) != 0) {
+        CLEAR_BIT(hfdcan->Instance->CCCR, FDCAN_CCCR_INIT); // Clear INIT bit to recover from Bus-Off
+    }
+
+    /* TODO: Call a generic function that will process all possible errors */
+    /* such as \ref prv_fdcan_bus_off_check_reset */
 }
 
 #else /* CO_STM32_FDCAN_Driver */
