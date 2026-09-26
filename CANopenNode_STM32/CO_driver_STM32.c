@@ -641,6 +641,17 @@ CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
             if (err & FDCAN_PSR_EP) {
                 status |= CO_CAN_ERRRX_PASSIVE | CO_CAN_ERRTX_PASSIVE;
             }
+
+            /* If transmitter is not passive, clear also the (non-latching) TX overflow.
+             * It is set by CO_CANsend(), when the driver TX buffer was already full. It
+             * must stay set while the bus is in a degraded state, so CO_EM_process() can
+             * report it, but it must not latch forever - otherwise CO_EM_CAN_TX_OVERFLOW
+             * keeps the communication bit of the error register (0x1001) set and, with
+             * CO_NMT_ERR_ON_ERR_REG, the node can never enter NMT operational state.
+             * Same pattern as CANopenNode/example/CO_driver_blank.c. */
+            if ((status & CO_CAN_ERRTX_PASSIVE) == 0U) {
+                status &= 0xFFFFU ^ CO_CAN_ERRTX_OVERFLOW;
+            }
         }
         CANmodule->CANerrorStatus = status;
     }
@@ -666,6 +677,12 @@ CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
 
             if (err & CAN_ESR_EPVF) {
                 status |= CO_CAN_ERRRX_PASSIVE | CO_CAN_ERRTX_PASSIVE;
+            }
+
+            /* If transmitter is not passive, clear also the (non-latching) TX overflow,
+             * see the CO_STM32_FDCAN_Driver branch above. */
+            if ((status & CO_CAN_ERRTX_PASSIVE) == 0U) {
+                status &= 0xFFFFU ^ CO_CAN_ERRTX_OVERFLOW;
             }
         }
 
@@ -719,6 +736,23 @@ void
 HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef* hfdcan, uint32_t RxFifo1ITs) {
     if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) {
         prv_read_can_received_msg(CANModule_local, FDCAN_RX_FIFO1, RxFifo1ITs);
+    }
+}
+
+/**
+ * \brief           Error status callback
+ * \param[in]       hfdcan: pointer to an FDCAN_HandleTypeDef structure that contains
+ *                      the configuration information for the specified FDCAN.
+ * \param[in]       ErrorStatusITs indicates which Error Status interrupts are signaled.
+ *                      This parameter can be any combination of @arg FDCAN_Error_Status_Interrupts.
+ *
+ * Implements manual FDCAN Bus-Off recovery as described in
+ * https://community.st.com/stm32-mcus-60/how-to-recover-from-bus-off-state-with-fdcan-on-stm32-mcus-158678.
+ */
+void
+HAL_FDCAN_ErrorStatusCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t ErrorStatusITs) {
+    if ((ErrorStatusITs & FDCAN_IT_BUS_OFF) != 0) {
+        CLEAR_BIT(hfdcan->Instance->CCCR, FDCAN_CCCR_INIT); // Clear INIT bit to recover from Bus-Off
     }
 }
 
