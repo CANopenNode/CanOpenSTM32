@@ -185,71 +185,81 @@ prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
 static void
 prv_read_can_received_msg(CO_CANmodule_t* CANmodule, uint32_t fifo, uint32_t fifo_isrs) {
     CO_CANrxMsg_t rcvMsg;
-    CO_CANrx_t* buffer = NULL; /* receive message buffer from CO_CANmodule_t object. */
-    uint16_t index;            /* index of received message */
-    uint32_t rcvMsgIdent;      /* identifier of the received message */
-    uint8_t messageFound = 0;
     can_periph_handle_t* mcu_canhandle = GET_CAN_PERIPH_HANDLE(CANmodule);
+    uint32_t pending = 0;
 
 #ifdef CO_STM32_FDCAN_Driver
-    /*
-     * Write received message to the temporary 64-bytes buffer.
-     * This is to ensure that the CAN nodes that do not comply with the newer CAN standards
-     * don't send wrong message with the wrong DLC value. This is a safety measure to avoid buffer overflow.
-     *
-     * Check the FDCAN implementation for STM32 in their respective reference manual.
-     */
-    static FDCAN_RxHeaderTypeDef rx_hdr;
-    static uint8_t rx_data[64];
-
-    /* Read received message from FIFO */
-    if (HAL_FDCAN_GetRxMessage(mcu_canhandle, fifo, &rx_hdr, rx_data) != HAL_OK) {
-        return;
-    }
-
-    /* Setup identifier (with RTR) and length */
-    rcvMsg.ident = rx_hdr.Identifier | (rx_hdr.RxFrameType == FDCAN_REMOTE_FRAME ? FLAG_RTR : 0x00);
-    rcvMsg.dlc = FDCAN_DLC_PERIPH_TO_NUM(rx_hdr.DataLength); /* Invalid length (more than 8) resolves to 0 */
-    if (rcvMsg.dlc > 0) {
-        memcpy(rcvMsg.data, rx_data, rcvMsg.dlc);
-    }
-    rcvMsgIdent = rcvMsg.ident;
+    pending = HAL_FDCAN_GetRxFifoFillLevel(mcu_canhandle, fifo);
 #else
-    static CAN_RxHeaderTypeDef rx_hdr;
-
-    /* Read received message from FIFO */
-    if (HAL_CAN_GetRxMessage(mcu_canhandle, fifo, &rx_hdr, rcvMsg.data) != HAL_OK) {
-        return;
-    }
-    /* Setup identifier (with RTR) and length */
-    rcvMsg.ident = rx_hdr.StdId | (rx_hdr.RTR == CAN_RTR_REMOTE ? FLAG_RTR : 0x00);
-    rcvMsg.dlc = rx_hdr.DLC;
-    rcvMsgIdent = rcvMsg.ident;
+    pending = HAL_CAN_GetRxFifoFillLevel(mcu_canhandle, fifo);
 #endif
 
-    /*
-     * Hardware filters are not used for the moment
-     * \todo: Implement hardware filters...
-     */
-    if (CANmodule->useCANrxFilters) {
-        __BKPT(0);
-    } else {
+    while (pending > 0) {
+        uint8_t messageFound = 0;
+        CO_CANrx_t* buffer = NULL; /* receive message buffer from CO_CANmodule_t object. */
+        uint32_t rcvMsgIdent;      /* identifier of the received message */
+
+        --pending;
+#ifdef CO_STM32_FDCAN_Driver
         /*
-         * We are not using hardware filters, hence it is necessary
-         * to manually match received message ID with all buffers
+         * Write received message to the temporary 64-bytes buffer.
+         * This is to ensure that the CAN nodes that do not comply with the newer CAN standards
+         * don't send wrong message with the wrong DLC value. This is a safety measure to avoid buffer overflow.
+         *
+         * Check the FDCAN implementation for STM32 in their respective reference manual.
          */
-        buffer = CANmodule->rxArray;
-        for (index = CANmodule->rxSize; index > 0U; --index, ++buffer) {
-            if (((rcvMsgIdent ^ buffer->ident) & buffer->mask) == 0U) {
-                messageFound = 1;
-                break;
+        static FDCAN_RxHeaderTypeDef rx_hdr;
+        static uint8_t rx_data[64];
+
+        /* Read received message from FIFO */
+        if (HAL_FDCAN_GetRxMessage(mcu_canhandle, fifo, &rx_hdr, rx_data) != HAL_OK) {
+            return;
+        }
+
+        /* Setup identifier (with RTR) and length */
+        rcvMsg.ident = rx_hdr.Identifier | (rx_hdr.RxFrameType == FDCAN_REMOTE_FRAME ? FLAG_RTR : 0x00);
+        rcvMsg.dlc = FDCAN_DLC_PERIPH_TO_NUM(rx_hdr.DataLength); /* Invalid length (more than 8) resolves to 0 */
+        if (rcvMsg.dlc > 0) {
+            memcpy(rcvMsg.data, rx_data, rcvMsg.dlc);
+        }
+        rcvMsgIdent = rcvMsg.ident;
+#else
+        static CAN_RxHeaderTypeDef rx_hdr;
+
+        /* Read received message from FIFO */
+        if (HAL_CAN_GetRxMessage(mcu_canhandle, fifo, &rx_hdr, rcvMsg.data) != HAL_OK) {
+            return;
+        }
+        /* Setup identifier (with RTR) and length */
+        rcvMsg.ident = rx_hdr.StdId | (rx_hdr.RTR == CAN_RTR_REMOTE ? FLAG_RTR : 0x00);
+        rcvMsg.dlc = rx_hdr.DLC;
+        rcvMsgIdent = rcvMsg.ident;
+#endif
+
+        /*
+         * Hardware filters are not used for the moment
+         * \todo: Implement hardware filters...
+         */
+        if (CANmodule->useCANrxFilters) {
+            __BKPT(0);
+        } else {
+            /*
+             * We are not using hardware filters, hence it is necessary
+             * to manually match received message ID with all buffers
+             */
+            buffer = CANmodule->rxArray;
+            for (uint16_t index = CANmodule->rxSize; index > 0U; --index, ++buffer) {
+                if (((rcvMsgIdent ^ buffer->ident) & buffer->mask) == 0U) {
+                    messageFound = 1;
+                    break;
+                }
             }
         }
-    }
 
-    /* Call specific function, which will process the message */
-    if (messageFound && buffer != NULL && buffer->CANrx_callback != NULL) {
-        buffer->CANrx_callback(buffer->object, &rcvMsg);
+        /* Call specific function, which will process the message */
+        if (messageFound && buffer != NULL && buffer->CANrx_callback != NULL) {
+            buffer->CANrx_callback(buffer->object, &rcvMsg);
+        }
     }
 }
 
