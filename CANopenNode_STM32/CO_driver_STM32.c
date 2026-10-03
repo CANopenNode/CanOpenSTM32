@@ -31,8 +31,14 @@
 #include "301/CO_driver.h"
 #include "CO_app_STM32.h"
 
-/* Local CAN module object */
-static CO_CANmodule_t* CANModule_local = NULL; /* Local instance of global CAN module */
+/**
+ * \brief           We use the local can module pointer,
+ *                  that is later used in the callbacks.
+ *
+ * We assume only one canopen instance is used at all times.
+ * It is declared as volatile, invoked from callbacks and interrupts
+ */
+static CO_CANmodule_t* volatile CANModule_local = NULL; /* Local instance of global CAN module */
 
 /* CAN masks for identifiers */
 #define CANID_MASK 0x07FF /*!< CAN standard ID mask */
@@ -49,48 +55,329 @@ static CO_CANmodule_t* CANModule_local = NULL; /* Local instance of global CAN m
 #warning "FDCAN_BUFFER_INDEXES not defined"
 #endif
 #endif
+#endif /* CO_STM32_FDCAN_Driver */
+
+/**
+ * \brief           Returns the HAL instance pointer for the [FD]CAN instance for the MCU
+ *                  hardware implementation from the CO_CanHandle CanOpen instance
+ * \note            It returns the pointer to the hardware peripheral instance,
+ *                  of type `can_periph_handle_t*` which is set depending on the CAN or FDCAN availability in the
+ *                  product silicon
+ */
+#define GET_CAN_PERIPH_HANDLE(_co_can_module_instance_)                                                                \
+    (((CANopenNodeSTM32*)(_co_can_module_instance_)->CANptr)->CANHandle)
+
+/**
+ * \brief           Convert buffer DLC number to the FDCAN peripheral marcos
+ * \param           dlc: DLC number between 0 to 8
+ */
+#define FDCAN_DLC_NUM_TO_PERIPH_VALUE(dlc)                                                                             \
+    ((dlc) == 0)                                                                                                       \
+        ? FDCAN_DLC_BYTES_0                                                                                            \
+        : (((dlc) == 1)                                                                                                \
+               ? FDCAN_DLC_BYTES_1                                                                                     \
+               : (((dlc) == 2)                                                                                         \
+                      ? FDCAN_DLC_BYTES_2                                                                              \
+                      : (((dlc) == 3)                                                                                  \
+                             ? FDCAN_DLC_BYTES_3                                                                       \
+                             : (((dlc) == 4) ? FDCAN_DLC_BYTES_4                                                       \
+                                             : (((dlc) == 5) ? FDCAN_DLC_BYTES_5                                       \
+                                                             : (((dlc) == 6) ? FDCAN_DLC_BYTES_6                       \
+                                                                             : (((dlc) == 7)   ? FDCAN_DLC_BYTES_7     \
+                                                                                : ((dlc) == 8) ? FDCAN_DLC_BYTES_8     \
+                                                                                               : (0))))))))
+
+/**
+ * \brief           Converts an FDCAN peripheral DLC value (FDCAN_DLC_BYTES_x) back into
+ *                  the actual number of data bytes it represents
+ */
+#define FDCAN_DLC_PERIPH_TO_NUM(dlc)                                                                                   \
+    ((dlc) == FDCAN_DLC_BYTES_0)                                                                                       \
+        ? 0                                                                                                            \
+        : (((dlc) == FDCAN_DLC_BYTES_1)                                                                                \
+               ? 1                                                                                                     \
+               : (((dlc) == FDCAN_DLC_BYTES_2)                                                                         \
+                      ? 2                                                                                              \
+                      : (((dlc) == FDCAN_DLC_BYTES_3)                                                                  \
+                             ? 3                                                                                       \
+                             : (((dlc) == FDCAN_DLC_BYTES_4)                                                           \
+                                    ? 4                                                                                \
+                                    : (((dlc) == FDCAN_DLC_BYTES_5)                                                    \
+                                           ? 5                                                                         \
+                                           : (((dlc) == FDCAN_DLC_BYTES_6)                                             \
+                                                  ? 6                                                                  \
+                                                  : (((dlc) == FDCAN_DLC_BYTES_7)   ? 7                                \
+                                                     : ((dlc) == FDCAN_DLC_BYTES_8) ? 8                                \
+                                                                                    : (0))))))))
+
+#ifdef CO_STM32_FDCAN_Driver
+static void prv_fdcan_bus_off_check_reset(FDCAN_HandleTypeDef* hfdcan);
+#endif /* CO_STM32_FDCAN_Driver */
+
+/**
+ * \brief           Send CAN message to network
+ *
+ * \note            This function must be called with atomic access.
+ *
+ * \param[in]       CANmodule: CAN module instance
+ * \param[in]       buffer: Pointer to buffer to transmit
+ * \return          `1` on success, `0` otherwise
+ */
+static uint8_t
+prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
+    uint8_t success = 0;
+
+    /* Check if TX FIFO is ready to accept more messages */
+#ifdef CO_STM32_FDCAN_Driver
+    static FDCAN_TxHeaderTypeDef tx_hdr;
+
+    if (HAL_FDCAN_GetTxFifoFreeLevel(GET_CAN_PERIPH_HANDLE(CANmodule)) > 0) {
+        /*
+         * RTR flag is part of identifier value
+         * hence it needs to be properly decoded
+         */
+        tx_hdr.Identifier = buffer->ident & CANID_MASK;
+        tx_hdr.TxFrameType = (buffer->ident & FLAG_RTR) ? FDCAN_REMOTE_FRAME : FDCAN_DATA_FRAME;
+        tx_hdr.IdType = FDCAN_STANDARD_ID;
+        tx_hdr.FDFormat = FDCAN_CLASSIC_CAN;
+        tx_hdr.BitRateSwitch = FDCAN_BRS_OFF;
+        tx_hdr.MessageMarker = 0;
+        tx_hdr.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+        tx_hdr.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+
+        tx_hdr.DataLength = FDCAN_DLC_NUM_TO_PERIPH_VALUE(buffer->DLC);
+
+        /* Now add message to FIFO. Should not fail */
+        success = HAL_FDCAN_AddMessageToTxFifoQ(GET_CAN_PERIPH_HANDLE(CANmodule), &tx_hdr, buffer->data);
+    }
+#else
+    static CAN_TxHeaderTypeDef tx_hdr;
+    /* Check if TX FIFO is ready to accept more messages */
+    if (HAL_CAN_GetTxMailboxesFreeLevel(GET_CAN_PERIPH_HANDLE(CANmodule)) > 0) {
+        uint32_t TxMailboxNum = 0;
+
+        /*
+         * RTR flag is part of identifier value
+         * hence it needs to be properly decoded
+         */
+        tx_hdr.ExtId = 0u;
+        tx_hdr.IDE = CAN_ID_STD;
+        tx_hdr.DLC = buffer->DLC;
+        tx_hdr.StdId = buffer->ident & CANID_MASK;
+        tx_hdr.RTR = (buffer->ident & FLAG_RTR) ? CAN_RTR_REMOTE : CAN_RTR_DATA;
+
+        /* Now add message to FIFO. Should not fail */
+        success = HAL_CAN_AddTxMessage(GET_CAN_PERIPH_HANDLE(CANmodule), &tx_hdr, buffer->data, &TxMailboxNum);
+    }
+#endif
+    if (success == HAL_OK) {
+        /* TODO: Message was well inserted in the queue, mark it as pending send */
+    }
+    return success == HAL_OK;
+}
+
+/**
+ * \brief           Read message from RX FIFO
+ * \param           CANmodule: CAN module instance, typically from the local pointer
+ * \param[in]       fifo: Fifo number to use for read
+ * \param[in]       fifo_isrs: List of interrupts for respected FIFO
+ */
+static void
+prv_read_can_received_msg(CO_CANmodule_t* CANmodule, uint32_t fifo, uint32_t fifo_isrs) {
+    CO_CANrxMsg_t rcvMsg;
+    can_periph_handle_t* mcu_canhandle = GET_CAN_PERIPH_HANDLE(CANmodule);
+    uint32_t pending = 0;
+
+#ifdef CO_STM32_FDCAN_Driver
+    pending = HAL_FDCAN_GetRxFifoFillLevel(mcu_canhandle, fifo);
+#else
+    pending = HAL_CAN_GetRxFifoFillLevel(mcu_canhandle, fifo);
 #endif
 
+    while (pending > 0) {
+        uint8_t messageFound = 0;
+        CO_CANrx_t* buffer = NULL; /* receive message buffer from CO_CANmodule_t object. */
+        uint32_t rcvMsgIdent;      /* identifier of the received message */
+
+        --pending;
+#ifdef CO_STM32_FDCAN_Driver
+        /*
+         * Write received message to the temporary 64-bytes buffer.
+         * This is to ensure that the CAN nodes that do not comply with the newer CAN standards
+         * don't send wrong message with the wrong DLC value. This is a safety measure to avoid buffer overflow.
+         *
+         * Check the FDCAN implementation for STM32 in their respective reference manual.
+         */
+        static FDCAN_RxHeaderTypeDef rx_hdr;
+        static uint8_t rx_data[64];
+
+        /* Read received message from FIFO */
+        if (HAL_FDCAN_GetRxMessage(mcu_canhandle, fifo, &rx_hdr, rx_data) != HAL_OK) {
+            return;
+        }
+
+        /* Setup identifier (with RTR) and length */
+        rcvMsg.ident = rx_hdr.Identifier | (rx_hdr.RxFrameType == FDCAN_REMOTE_FRAME ? FLAG_RTR : 0x00);
+        rcvMsg.dlc = FDCAN_DLC_PERIPH_TO_NUM(rx_hdr.DataLength); /* Invalid length (more than 8) resolves to 0 */
+        if (rcvMsg.dlc > 0) {
+            memcpy(rcvMsg.data, rx_data, rcvMsg.dlc);
+        }
+        rcvMsgIdent = rcvMsg.ident;
+#else
+        static CAN_RxHeaderTypeDef rx_hdr;
+
+        /* Read received message from FIFO */
+        if (HAL_CAN_GetRxMessage(mcu_canhandle, fifo, &rx_hdr, rcvMsg.data) != HAL_OK) {
+            return;
+        }
+        /* Setup identifier (with RTR) and length */
+        rcvMsg.ident = rx_hdr.StdId | (rx_hdr.RTR == CAN_RTR_REMOTE ? FLAG_RTR : 0x00);
+        rcvMsg.dlc = rx_hdr.DLC;
+        rcvMsgIdent = rcvMsg.ident;
+#endif
+
+        /*
+         * Hardware filters are not used for the moment
+         * \todo: Implement hardware filters...
+         */
+        if (CANmodule->useCANrxFilters) {
+            __BKPT(0);
+        } else {
+            /*
+             * We are not using hardware filters, hence it is necessary
+             * to manually match received message ID with all buffers
+             */
+            buffer = CANmodule->rxArray;
+            for (uint16_t index = CANmodule->rxSize; index > 0U; --index, ++buffer) {
+                if (((rcvMsgIdent ^ buffer->ident) & buffer->mask) == 0U) {
+                    messageFound = 1;
+                    break;
+                }
+            }
+        }
+
+        /* Call specific function, which will process the message */
+        if (messageFound && buffer != NULL && buffer->CANrx_callback != NULL) {
+            buffer->CANrx_callback(buffer->object, &rcvMsg);
+        }
+    }
+}
+
+/**
+ * \brief           TX buffer has been well transmitted callback
+ * \param[in]       hcan: pointer to an CAN_HandleTypeDef structure that contains
+ *                      the configuration information for the specified CAN.
+ * \param[in]       MailboxNumber: the mailbox number that has been transmitted
+ */
+static void
+prv_process_tx_complete(CO_CANmodule_t* CANmodule, uint32_t MailboxNumber) {
+    CANmodule->firstCANtxMessage = false; /* First CAN message (bootup) was sent successfully */
+    CANmodule->bufferInhibitFlag = false; /* Clear flag from previous message */
+
+    /*
+     * Try to send more buffers, process all empty ones
+     *
+     * This function is always called from interrupt,
+     * however to make sure no preemption can happen, interrupts are anyway locked
+     * (unless you can guarantee no higher priority interrupt will try to access to CAN instance and send data,
+     *  then no need to lock interrupts..)
+     */
+    CO_LOCK_CAN_SEND(CANmodule);
+    if (CANmodule->CANtxCount > 0U) {                /* Are there any new messages waiting to be send */
+        CO_CANtx_t* buffer = &CANmodule->txArray[0]; /* Start with first buffer handle */
+        for (size_t idx = CANmodule->txSize; idx > 0U; --idx, ++buffer) {
+            /* Try to send message */
+            if (buffer->bufferFull) {
+                if (prv_send_can_message(CANmodule, buffer)) {
+                    buffer->bufferFull = false;
+                    CANmodule->CANtxCount--;
+                    CANmodule->bufferInhibitFlag = buffer->syncFlag;
+                } else {
+                    break; // if we could not send the message, break out of the loop (the tx buffers are full)
+                }
+            }
+        }
+    }
+    CO_UNLOCK_CAN_SEND(CANmodule);
+}
+
 /******************************************************************************/
+/* CanOpenNode specific implementation functions                              */
+/******************************************************************************/
+
+/**
+ * \brief           Put the CAN in the configuration mode.
+ *
+ * \param           CANptr: Custom \ref CANopenNodeSTM32 structure pointer
+ */
 void
 CO_CANsetConfigurationMode(void* CANptr) {
+    CANopenNodeSTM32* customhandle = CANptr;
+
     /* Put CAN module in configuration mode */
-    if (CANptr != NULL) {
+    if (customhandle != NULL) {
+        can_periph_handle_t* periphhandle = customhandle->CANHandle;
 #ifdef CO_STM32_FDCAN_Driver
-        HAL_FDCAN_Stop(((CANopenNodeSTM32*)CANptr)->CANHandle);
+        HAL_FDCAN_Stop(periphhandle);
 #else
-        HAL_CAN_Stop(((CANopenNodeSTM32*)CANptr)->CANHandle);
+        HAL_CAN_Stop(periphhandle);
 #endif
     }
 }
 
 /******************************************************************************/
+
+/**
+ * \brief           Set CAN peripheral to the normal mode
+ *
+ * \param           CANmodule: CanOpen module, where we store also the pointer
+ *                      to our custom STM32 structure
+ */
 void
 CO_CANsetNormalMode(CO_CANmodule_t* CANmodule) {
     /* Put CAN module in normal mode */
-    if (CANmodule->CANptr != NULL) {
+    if (CANmodule != NULL && CANmodule->CANptr != NULL) {
+        can_periph_handle_t* periphhandle = GET_CAN_PERIPH_HANDLE(CANmodule);
+        HAL_StatusTypeDef status;
+
 #ifdef CO_STM32_FDCAN_Driver
-        if (HAL_FDCAN_Start(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle) == HAL_OK)
+        status = HAL_FDCAN_Start(periphhandle);
 #else
-        if (HAL_CAN_Start(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle) == HAL_OK)
+        status = HAL_CAN_Start(periphhandle);
 #endif
-        {
+
+        if (status == HAL_OK) {
             CANmodule->CANnormal = true;
         }
     }
 }
 
 /******************************************************************************/
+
+/**
+ * \brief           Initialize the CANmodule object
+ *
+ * \param           CANmodule
+ * \param           CANptr: CANptr is the same variable we pass to the CO_CANinit and should be
+ *                      of the type \ref CANopenNodeSTM32 for this implementation
+ * \param           rxArray
+ * \param           rxSize
+ * \param           txArray
+ * \param           txSize
+ * \param           CANbitRate
+ * \return
+ */
 CO_ReturnError_t
 CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[], uint16_t rxSize, CO_CANtx_t txArray[],
                   uint16_t txSize, uint16_t CANbitRate) {
+    CANopenNodeSTM32* canstm32handle = CANptr;
 
     /* verify arguments */
-    if (CANmodule == NULL || rxArray == NULL || txArray == NULL) {
+    if (CANmodule == NULL || rxArray == NULL || txArray == NULL || canstm32handle == NULL) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
 
-    /* Hold CANModule variable */
+    /* CANptr is our STM32 type */
     CANmodule->CANptr = CANptr;
 
     /* Keep a local copy of CANModule */
@@ -110,20 +397,26 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
     CANmodule->errOld = 0U;
 
     /* Reset all variables */
-    for (uint16_t i = 0U; i < rxSize; i++) {
-        rxArray[i].ident = 0U;
-        rxArray[i].mask = 0xFFFFU;
-        rxArray[i].object = NULL;
-        rxArray[i].CANrx_callback = NULL;
+    for (uint16_t idx = 0U; idx < rxSize; idx++) {
+        CO_CANrx_t* const msg = &rxArray[idx];
+
+        msg->ident = 0U;
+        msg->mask = 0xFFFFU;
+        msg->object = NULL;
+        msg->CANrx_callback = NULL;
     }
-    for (uint16_t i = 0U; i < txSize; i++) {
-        txArray[i].bufferFull = false;
+    for (uint16_t idx = 0U; idx < txSize; idx++) {
+        CO_CANtx_t* const msg = &txArray[idx];
+
+        msg->bufferFull = false;
     }
 
     /***************************************/
     /* STM32 related configuration */
     /***************************************/
-    ((CANopenNodeSTM32*)CANptr)->HWInitFunction();
+    if (canstm32handle->HWInitFunction != NULL) {
+        canstm32handle->HWInitFunction();
+    }
 
     /*
      * Configure global filter that is used as last check if message did not pass any of other filters:
@@ -134,19 +427,18 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
      * Accept non-matching standard ID messages
      * Reject non-matching extended ID messages
      */
-
 #ifdef CO_STM32_FDCAN_Driver
-    if (HAL_FDCAN_ConfigGlobalFilter(((CANopenNodeSTM32*)CANptr)->CANHandle, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_REJECT,
+    if (HAL_FDCAN_ConfigGlobalFilter(canstm32handle->CANHandle, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_REJECT,
                                      FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE)
         != HAL_OK) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
-#else
+#else /* CO_STM32_FDCAN_Driver */
     CAN_FilterTypeDef FilterConfig;
 #if defined(CAN)
     FilterConfig.FilterBank = 0;
 #else
-    if (((CAN_HandleTypeDef*)((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle)->Instance == CAN1) {
+    if ((GET_CAN_PERIPH_HANDLE(CANmodule))->Instance == CAN1) {
         FilterConfig.FilterBank = 0;
     } else {
         FilterConfig.FilterBank = 14;
@@ -163,14 +455,15 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
     FilterConfig.FilterActivation = ENABLE;
     FilterConfig.SlaveStartFilterBank = 14;
 
-    if (HAL_CAN_ConfigFilter(((CANopenNodeSTM32*)CANptr)->CANHandle, &FilterConfig) != HAL_OK) {
+    if (HAL_CAN_ConfigFilter(canstm32handle->CANHandle, &FilterConfig) != HAL_OK) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
-#endif
+#endif /* !CO_STM32_FDCAN_Driver */
+
     /* Enable notifications */
     /* Activate the CAN notification interrupts */
 #ifdef CO_STM32_FDCAN_Driver
-    if (HAL_FDCAN_ActivateNotification(((CANopenNodeSTM32*)CANptr)->CANHandle,
+    if (HAL_FDCAN_ActivateNotification(canstm32handle->CANHandle,
                                        0 | FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_RX_FIFO1_NEW_MESSAGE
                                            | FDCAN_IT_TX_COMPLETE | FDCAN_IT_TX_FIFO_EMPTY | FDCAN_IT_BUS_OFF
                                            | FDCAN_IT_ARB_PROTOCOL_ERROR | FDCAN_IT_DATA_PROTOCOL_ERROR
@@ -180,9 +473,9 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
 #else
-    if (HAL_CAN_ActivateNotification(((CANopenNodeSTM32*)CANptr)->CANHandle, CAN_IT_RX_FIFO0_MSG_PENDING
-                                                                                 | CAN_IT_RX_FIFO1_MSG_PENDING
-                                                                                 | CAN_IT_TX_MAILBOX_EMPTY)
+    if (HAL_CAN_ActivateNotification(canstm32handle->CANHandle, CAN_IT_RX_FIFO0_MSG_PENDING
+                                                                    | CAN_IT_RX_FIFO1_MSG_PENDING
+                                                                    | CAN_IT_TX_MAILBOX_EMPTY)
         != HAL_OK) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
@@ -194,13 +487,19 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
 /******************************************************************************/
 void
 CO_CANmodule_disable(CO_CANmodule_t* CANmodule) {
+    /* Disable the module */
     if (CANmodule != NULL && CANmodule->CANptr != NULL) {
-#ifdef CO_STM32_FDCAN_Driver
-        HAL_FDCAN_Stop(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle);
+        can_periph_handle_t* periphhandle = GET_CAN_PERIPH_HANDLE(CANmodule);
+        HAL_StatusTypeDef status;
 
+#ifdef CO_STM32_FDCAN_Driver
+        status = HAL_FDCAN_Stop(periphhandle);
 #else
-        HAL_CAN_Stop(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle);
+        status = HAL_CAN_Stop(periphhandle);
 #endif
+        if (status != HAL_OK) {
+            (void)status; /* might be unused */
+        }
     }
 }
 
@@ -254,97 +553,6 @@ CO_CANtxBufferInit(CO_CANmodule_t* CANmodule, uint16_t index, uint16_t ident, bo
     return buffer;
 }
 
-/**
- * \brief           Send CAN message to network
- * This function must be called with atomic access.
- *
- * \param[in]       CANmodule: CAN module instance
- * \param[in]       buffer: Pointer to buffer to transmit
- */
-static uint8_t
-prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
-
-    uint8_t success = 0;
-
-    /* Check if TX FIFO is ready to accept more messages */
-#ifdef CO_STM32_FDCAN_Driver
-    static FDCAN_TxHeaderTypeDef tx_hdr;
-    if (HAL_FDCAN_GetTxFifoFreeLevel(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle) > 0) {
-        /*
-         * RTR flag is part of identifier value
-         * hence it needs to be properly decoded
-         */
-        tx_hdr.Identifier = buffer->ident & CANID_MASK;
-        tx_hdr.TxFrameType = (buffer->ident & FLAG_RTR) ? FDCAN_REMOTE_FRAME : FDCAN_DATA_FRAME;
-        tx_hdr.IdType = FDCAN_STANDARD_ID;
-        tx_hdr.FDFormat = FDCAN_CLASSIC_CAN;
-        tx_hdr.BitRateSwitch = FDCAN_BRS_OFF;
-        tx_hdr.MessageMarker = 0;
-        tx_hdr.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-        tx_hdr.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
-
-        switch (buffer->DLC) {
-            case 0:
-                tx_hdr.DataLength = FDCAN_DLC_BYTES_0;
-                break;
-            case 1:
-                tx_hdr.DataLength = FDCAN_DLC_BYTES_1;
-                break;
-            case 2:
-                tx_hdr.DataLength = FDCAN_DLC_BYTES_2;
-                break;
-            case 3:
-                tx_hdr.DataLength = FDCAN_DLC_BYTES_3;
-                break;
-            case 4:
-                tx_hdr.DataLength = FDCAN_DLC_BYTES_4;
-                break;
-            case 5:
-                tx_hdr.DataLength = FDCAN_DLC_BYTES_5;
-                break;
-            case 6:
-                tx_hdr.DataLength = FDCAN_DLC_BYTES_6;
-                break;
-            case 7:
-                tx_hdr.DataLength = FDCAN_DLC_BYTES_7;
-                break;
-            case 8:
-                tx_hdr.DataLength = FDCAN_DLC_BYTES_8;
-                break;
-            default: /* Hard error... */
-                break;
-        }
-
-        /* Now add message to FIFO. Should not fail */
-        success =
-            HAL_FDCAN_AddMessageToTxFifoQ(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle, &tx_hdr, buffer->data)
-            == HAL_OK;
-    }
-#else
-    static CAN_TxHeaderTypeDef tx_hdr;
-    /* Check if TX FIFO is ready to accept more messages */
-    if (HAL_CAN_GetTxMailboxesFreeLevel(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle) > 0) {
-        /*
-         * RTR flag is part of identifier value
-         * hence it needs to be properly decoded
-         */
-        tx_hdr.ExtId = 0u;
-        tx_hdr.IDE = CAN_ID_STD;
-        tx_hdr.DLC = buffer->DLC;
-        tx_hdr.StdId = buffer->ident & CANID_MASK;
-        tx_hdr.RTR = (buffer->ident & FLAG_RTR) ? CAN_RTR_REMOTE : CAN_RTR_DATA;
-
-        uint32_t TxMailboxNum; // Transmission MailBox number
-
-        /* Now add message to FIFO. Should not fail */
-        success = HAL_CAN_AddTxMessage(((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle, &tx_hdr, buffer->data,
-                                       &TxMailboxNum)
-                  == HAL_OK;
-    }
-#endif
-    return success;
-}
-
 /******************************************************************************/
 CO_ReturnError_t
 CO_CANsend(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
@@ -394,9 +602,8 @@ CO_CANclearPendingSyncPDOs(CO_CANmodule_t* CANmodule) {
     }
     /* delete also pending synchronous TPDOs in TX buffers */
     if (CANmodule->CANtxCount > 0) {
-        uint16_t i;
         CO_CANtx_t* buffer = &CANmodule->txArray[0];
-        for (i = CANmodule->txSize; i > 0U; i--) {
+        for (uint16_t idx = CANmodule->txSize; idx > 0U; idx--) {
             if (buffer->bufferFull) {
                 if (buffer->syncFlag) {
                     buffer->bufferFull = false;
@@ -414,32 +621,26 @@ CO_CANclearPendingSyncPDOs(CO_CANmodule_t* CANmodule) {
 }
 
 /******************************************************************************/
-/* Get error counters from the module. If necessary, function may use
-    * different way to determine errors. */
-static uint16_t rxErrors = 0, txErrors = 0, overflow = 0;
 
 void
 CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
     uint32_t err = 0;
+    can_periph_handle_t* periphhandle = GET_CAN_PERIPH_HANDLE(CANmodule);
 
     // CANOpen just care about Bus_off, Warning, Passive and Overflow
     // I didn't find overflow error register in STM32, if you find it please let me know
 
 #ifdef CO_STM32_FDCAN_Driver
-
-    err = ((FDCAN_HandleTypeDef*)((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle)->Instance->PSR
-          & (FDCAN_PSR_BO | FDCAN_PSR_EW | FDCAN_PSR_EP);
-
+    err = periphhandle->Instance->PSR & (FDCAN_PSR_BO | FDCAN_PSR_EW | FDCAN_PSR_EP);
     if (CANmodule->errOld != err) {
-
         uint16_t status = CANmodule->CANerrorStatus;
 
         CANmodule->errOld = err;
-
         if (err & FDCAN_PSR_BO) {
             status |= CO_CAN_ERRTX_BUS_OFF;
-            // In this driver we expect that the controller is automatically handling the protocol exceptions.
 
+            /* FDCAN does not auto start bus-off, start it here */
+            prv_fdcan_bus_off_check_reset(periphhandle);
         } else {
             /* recalculate CANerrorStatus, first clear some flags */
             status &= 0xFFFF
@@ -465,25 +666,18 @@ CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
                 status &= 0xFFFFU ^ CO_CAN_ERRTX_OVERFLOW;
             }
         }
-
         CANmodule->CANerrorStatus = status;
     }
 #else
-
-    err = ((CAN_HandleTypeDef*)((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle)->Instance->ESR
-          & (CAN_ESR_BOFF | CAN_ESR_EPVF | CAN_ESR_EWGF);
-
-    //    uint32_t esrVal = ((CAN_HandleTypeDef*)((CANopenNodeSTM32*)CANmodule->CANptr)->CANHandle)->Instance->ESR; Debug purpose
+    err = periphhandle->Instance->ESR & (CAN_ESR_BOFF | CAN_ESR_EPVF | CAN_ESR_EWGF);
     if (CANmodule->errOld != err) {
-
         uint16_t status = CANmodule->CANerrorStatus;
 
         CANmodule->errOld = err;
-
         if (err & CAN_ESR_BOFF) {
             status |= CO_CAN_ERRTX_BUS_OFF;
-            // In this driver, we assume that auto bus recovery is activated ! so this error will eventually handled automatically.
-
+            // In this driver, we assume that auto bus recovery is activated ! so this error will eventually handled
+            // automatically. This has to be enabled in the settings
         } else {
             /* recalculate CANerrorStatus, first clear some flags */
             status &= 0xFFFF
@@ -507,135 +701,31 @@ CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
 
         CANmodule->CANerrorStatus = status;
     }
-
 #endif
 }
 
+/******************************************************************************/
+/* Hardware specific callback functions implemented here                      */
+/******************************************************************************/
+
+#ifdef CO_STM32_FDCAN_Driver
+
 /**
- * \brief           Read message from RX FIFO
- * \param           hfdcan: pointer to an FDCAN_HandleTypeDef structure that contains
- *                      the configuration information for the specified FDCAN.
- * \param[in]       fifo: Fifo number to use for read
- * \param[in]       fifo_isrs: List of interrupts for respected FIFO
+ * \brief           Check for BUS-OFF and reinitialize the FDCAN peripheral instance
+ *                  IP will then wait for recessive bits before resuming the operation
+ *
+ * \param           hfdcan
  */
-#ifdef CO_STM32_FDCAN_Driver
 static void
-prv_read_can_received_msg(FDCAN_HandleTypeDef* hfdcan, uint32_t fifo, uint32_t fifo_isrs)
-#else
-static void
-prv_read_can_received_msg(CAN_HandleTypeDef* hcan, uint32_t fifo, uint32_t fifo_isrs)
-#endif
-{
+prv_fdcan_bus_off_check_reset(FDCAN_HandleTypeDef* hfdcan) {
+    FDCAN_ProtocolStatusTypeDef protocolStatus = {0};
 
-    CO_CANrxMsg_t rcvMsg;
-    CO_CANrx_t* buffer = NULL; /* receive message buffer from CO_CANmodule_t object. */
-    uint16_t index;            /* index of received message */
-    uint32_t rcvMsgIdent;      /* identifier of the received message */
-    uint8_t messageFound = 0;
-
-#ifdef CO_STM32_FDCAN_Driver
-    uint32_t pending = HAL_FDCAN_GetRxFifoFillLevel(hfdcan, fifo);
-#else
-    uint32_t pending = HAL_CAN_GetRxFifoFillLevel(hcan, fifo);
-#endif
-
-    while (pending > 0U) {
-        --pending;
-#ifdef CO_STM32_FDCAN_Driver
-
-        /*
-         * Write received message to the temporary 64-bytes buffer.
-         * This is to ensure that the CAN nodes that do not comply with the newer CAN standards
-         * don't send wrong message with the wrong DLC value. This is a safety measure to avoid buffer overflow.
-         *
-         * Check the FDCAN implementation for STM32 in their respective reference manual.
-         */
-        static FDCAN_RxHeaderTypeDef rx_hdr;
-        static uint8_t rx_data[64];
-        /* Read received message from FIFO */
-        if (HAL_FDCAN_GetRxMessage(hfdcan, fifo, &rx_hdr, rx_data) != HAL_OK) {
-            break;
-        }
-        /* Setup identifier (with RTR) and length */
-        rcvMsg.ident = rx_hdr.Identifier | (rx_hdr.RxFrameType == FDCAN_REMOTE_FRAME ? FLAG_RTR : 0x00);
-        switch (rx_hdr.DataLength) {
-            case FDCAN_DLC_BYTES_0:
-                rcvMsg.dlc = 0;
-                break;
-            case FDCAN_DLC_BYTES_1:
-                rcvMsg.dlc = 1;
-                break;
-            case FDCAN_DLC_BYTES_2:
-                rcvMsg.dlc = 2;
-                break;
-            case FDCAN_DLC_BYTES_3:
-                rcvMsg.dlc = 3;
-                break;
-            case FDCAN_DLC_BYTES_4:
-                rcvMsg.dlc = 4;
-                break;
-            case FDCAN_DLC_BYTES_5:
-                rcvMsg.dlc = 5;
-                break;
-            case FDCAN_DLC_BYTES_6:
-                rcvMsg.dlc = 6;
-                break;
-            case FDCAN_DLC_BYTES_7:
-                rcvMsg.dlc = 7;
-                break;
-            case FDCAN_DLC_BYTES_8:
-                rcvMsg.dlc = 8;
-                break;
-            default:
-                rcvMsg.dlc = 0;
-                break; /* Invalid length when more than 8 */
-        }
-        if (rcvMsg.dlc > 0) {
-            memcpy(rcvMsg.data, rx_data, rcvMsg.dlc);
-        }
-        rcvMsgIdent = rcvMsg.ident;
-#else
-        static CAN_RxHeaderTypeDef rx_hdr;
-        /* Read received message from FIFO */
-        if (HAL_CAN_GetRxMessage(hcan, fifo, &rx_hdr, rcvMsg.data) != HAL_OK) {
-            break;
-        }
-        /* Setup identifier (with RTR) and length */
-        rcvMsg.ident = rx_hdr.StdId | (rx_hdr.RTR == CAN_RTR_REMOTE ? FLAG_RTR : 0x00);
-        rcvMsg.dlc = rx_hdr.DLC;
-        rcvMsgIdent = rcvMsg.ident;
-#endif
-
-        /*
-         * Hardware filters are not used for the moment
-         * \todo: Implement hardware filters...
-         */
-        if (CANModule_local->useCANrxFilters) {
-            __BKPT(0);
-        } else {
-            /*
-             * We are not using hardware filters, hence it is necessary
-             * to manually match received message ID with all buffers
-             */
-            buffer = CANModule_local->rxArray;
-            for (index = CANModule_local->rxSize; index > 0U; --index, ++buffer) {
-                if (((rcvMsgIdent ^ buffer->ident) & buffer->mask) == 0U) {
-                    messageFound = 1;
-                    break;
-                }
-            }
-        }
-
-        /* Call specific function, which will process the message */
-        if (messageFound && buffer != NULL && buffer->CANrx_callback != NULL) {
-            buffer->CANrx_callback(buffer->object, (void*)&rcvMsg);
-        }
-        messageFound = 0;
-        buffer = NULL;
+    HAL_FDCAN_GetProtocolStatus(hfdcan, &protocolStatus);
+    if (protocolStatus.BusOff) {
+        CLEAR_BIT(hfdcan->Instance->CCCR, FDCAN_CCCR_INIT);
     }
 }
 
-#ifdef CO_STM32_FDCAN_Driver
 /**
  * \brief           Rx FIFO 0 callback.
  * \param[in]       hfdcan: pointer to an FDCAN_HandleTypeDef structure that contains
@@ -645,7 +735,7 @@ prv_read_can_received_msg(CAN_HandleTypeDef* hcan, uint32_t fifo, uint32_t fifo_
 void
 HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef* hfdcan, uint32_t RxFifo0ITs) {
     if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) {
-        prv_read_can_received_msg(hfdcan, FDCAN_RX_FIFO0, RxFifo0ITs);
+        prv_read_can_received_msg(CANModule_local, FDCAN_RX_FIFO0, RxFifo0ITs);
     }
 }
 
@@ -658,8 +748,32 @@ HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef* hfdcan, uint32_t RxFifo0ITs) {
 void
 HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef* hfdcan, uint32_t RxFifo1ITs) {
     if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) {
-        prv_read_can_received_msg(hfdcan, FDCAN_RX_FIFO1, RxFifo1ITs);
+        prv_read_can_received_msg(CANModule_local, FDCAN_RX_FIFO1, RxFifo1ITs);
     }
+}
+
+/**
+ * \brief           TX buffer has been well transmitted callback
+ * \param[in]       hfdcan: pointer to an FDCAN_HandleTypeDef structure that contains
+ *                      the configuration information for the specified FDCAN.
+ * \param[in]       BufferIndexes: Bits of successfully sent TX buffers
+ */
+void
+HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t BufferIndexes) {
+    prv_process_tx_complete(CANModule_local, BufferIndexes);
+}
+
+/**
+ * \brief           Error callback.
+ * \param[in]       hfdcan: pointer to an FDCAN_HandleTypeDef structure that contains
+ *                      the configuration information for the specified FDCAN
+ */
+void
+HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef* hfdcan) {
+    (void)hfdcan;
+
+    /* Do we do it here or in process only? */
+    /* prv_fdcan_bus_off_check_reset(hfdcan); */
 }
 
 /**
@@ -674,51 +788,19 @@ HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef* hfdcan, uint32_t RxFifo1ITs) {
  */
 void
 HAL_FDCAN_ErrorStatusCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t ErrorStatusITs) {
-    if ((ErrorStatusITs & FDCAN_IT_BUS_OFF) != 0) // If Bus-Off error occurred
-    {
+    (void)hfdcan;
+    (void)ErrorStatusITs;
+
+    if ((ErrorStatusITs & FDCAN_IT_BUS_OFF) != 0) {
         CLEAR_BIT(hfdcan->Instance->CCCR, FDCAN_CCCR_INIT); // Clear INIT bit to recover from Bus-Off
     }
+
+    /* TODO: Call a generic function that will process all possible errors */
+    /* such as \ref prv_fdcan_bus_off_check_reset */
 }
 
-/**
- * \brief           TX buffer has been well transmitted callback
- * \param[in]       hfdcan: pointer to an FDCAN_HandleTypeDef structure that contains
- *                      the configuration information for the specified FDCAN.
- * \param[in]       BufferIndexes: Bits of successfully sent TX buffers
- */
-void
-HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t BufferIndexes) {
-    CANModule_local->firstCANtxMessage = false;            /* First CAN message (bootup) was sent successfully */
-    CANModule_local->bufferInhibitFlag = false;            /* Clear flag from previous message */
-    if (CANModule_local->CANtxCount > 0U) {                /* Are there any new messages waiting to be send */
-        CO_CANtx_t* buffer = &CANModule_local->txArray[0]; /* Start with first buffer handle */
-        uint16_t i;
+#else /* CO_STM32_FDCAN_Driver */
 
-        /*
-         * Try to send more buffers, process all empty ones
-         *
-         * This function is always called from interrupt,
-         * however to make sure no preemption can happen, interrupts are anyway locked
-         * (unless you can guarantee no higher priority interrupt will try to access to FDCAN instance and send data,
-         *  then no need to lock interrupts..)
-         */
-        CO_LOCK_CAN_SEND(CANModule_local);
-        for (i = CANModule_local->txSize; i > 0U; --i, ++buffer) {
-            /* Try to send message */
-            if (buffer->bufferFull) {
-                if (prv_send_can_message(CANModule_local, buffer)) {
-                    buffer->bufferFull = false;
-                    CANModule_local->CANtxCount--;
-                    CANModule_local->bufferInhibitFlag = buffer->syncFlag;
-                } else {
-                    break; // if we could not send the message, break out of the loop (the tx buffers are full)
-                }
-            }
-        }
-        CO_UNLOCK_CAN_SEND(CANModule_local);
-    }
-}
-#else
 /**
  * \brief           Rx FIFO 0 callback.
  * \param[in]       hcan: pointer to an CAN_HandleTypeDef structure that contains
@@ -726,7 +808,7 @@ HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t BufferI
  */
 void
 HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef* hcan) {
-    prv_read_can_received_msg(hcan, CAN_RX_FIFO0, 0);
+    prv_read_can_received_msg(CANModule_local, CAN_RX_FIFO0, 0);
 }
 
 /**
@@ -736,61 +818,37 @@ HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef* hcan) {
  */
 void
 HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef* hcan) {
-    prv_read_can_received_msg(hcan, CAN_RX_FIFO1, 0);
+    prv_read_can_received_msg(CANModule_local, CAN_RX_FIFO1, 0);
 }
 
 /**
- * \brief           TX buffer has been well transmitted callback
- * \param[in]       hcan: pointer to an CAN_HandleTypeDef structure that contains
- *                      the configuration information for the specified CAN.
- * \param[in]       MailboxNumber: the mailbox number that has been transmitted
+ * \brief           TX mailbox 0 message sent
+ *
+ * \param           hcan
  */
 void
-CO_CANinterrupt_TX(CO_CANmodule_t* CANmodule, uint32_t MailboxNumber) {
-
-    CANmodule->firstCANtxMessage = false;            /* First CAN message (bootup) was sent successfully */
-    CANmodule->bufferInhibitFlag = false;            /* Clear flag from previous message */
-    if (CANmodule->CANtxCount > 0U) {                /* Are there any new messages waiting to be send */
-        CO_CANtx_t* buffer = &CANmodule->txArray[0]; /* Start with first buffer handle */
-        uint16_t i;
-
-        /*
-		 * Try to send more buffers, process all empty ones
-		 *
-		 * This function is always called from interrupt,
-		 * however to make sure no preemption can happen, interrupts are anyway locked
-		 * (unless you can guarantee no higher priority interrupt will try to access to CAN instance and send data,
-		 *  then no need to lock interrupts..)
-		 */
-        CO_LOCK_CAN_SEND(CANmodule);
-        for (i = CANmodule->txSize; i > 0U; --i, ++buffer) {
-            /* Try to send message */
-            if (buffer->bufferFull) {
-                if (prv_send_can_message(CANmodule, buffer)) {
-                    buffer->bufferFull = false;
-                    CANmodule->CANtxCount--;
-                    CANmodule->bufferInhibitFlag = buffer->syncFlag;
-                } else {
-                    break; // if we could not send the message, break out of the loop (the tx buffers are full)
-                }
-            }
-        }
-        CO_UNLOCK_CAN_SEND(CANmodule);
-    }
-}
-
-void
 HAL_CAN_TxMailbox0CompleteCallback(CAN_HandleTypeDef* hcan) {
-    CO_CANinterrupt_TX(CANModule_local, CAN_TX_MAILBOX0);
+    prv_process_tx_complete(CANModule_local, CAN_TX_MAILBOX0);
 }
 
+/**
+ * \brief           TX mailbox 1 message sent
+ *
+ * \param           hcan
+ */
 void
 HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef* hcan) {
-    CO_CANinterrupt_TX(CANModule_local, CAN_TX_MAILBOX0);
+    prv_process_tx_complete(CANModule_local, CAN_TX_MAILBOX1);
 }
 
+/**
+ * \brief           TX mailbox 2 message sent
+ *
+ * \param           hcan
+ */
 void
 HAL_CAN_TxMailbox2CompleteCallback(CAN_HandleTypeDef* hcan) {
-    CO_CANinterrupt_TX(CANModule_local, CAN_TX_MAILBOX0);
+    prv_process_tx_complete(CANModule_local, CAN_TX_MAILBOX2);
 }
-#endif
+
+#endif /* !CO_STM32_FDCAN_Driver */
