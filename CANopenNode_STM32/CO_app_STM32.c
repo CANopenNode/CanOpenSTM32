@@ -96,7 +96,9 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
     CO_config_t co_config = {0};
     OD_INIT_CONFIG(co_config); /* helper macro from OD.h */
     co_config.CNT_LEDS = 1;
+#if ((CO_CONFIG_LSS) & CO_CONFIG_LSS_SLAVE) != 0
     co_config.CNT_LSS_SLV = 1;
+#endif
     config_ptr = &co_config;
 #endif /* CO_MULTIPLE_OD */
 
@@ -150,6 +152,7 @@ canopen_app_resetCommunication() {
         return 1;
     }
 
+#if ((CO_CONFIG_LSS) & CO_CONFIG_LSS_SLAVE) != 0
     CO_LSS_address_t lssAddress = {.identity = {.vendorID = OD_PERSIST_COMM.x1018_identity.vendor_ID,
                                                 .productCode = OD_PERSIST_COMM.x1018_identity.productCode,
                                                 .revisionNumber = OD_PERSIST_COMM.x1018_identity.revisionNumber,
@@ -159,6 +162,7 @@ canopen_app_resetCommunication() {
         log_printf("Error: LSS slave initialization failed: %d\n", err);
         return 2;
     }
+#endif
 
     canopenNodeSTM32->activeNodeID = canopenNodeSTM32->desiredNodeID;
     uint32_t errInfo = 0;
