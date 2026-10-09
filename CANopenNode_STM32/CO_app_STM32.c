@@ -68,6 +68,7 @@ CO_t* CO = NULL; /* CANopen object */
 
 // Global variables
 uint32_t time_old, time_current;
+uint32_t interrupt_time_old;
 CO_ReturnError_t err;
 
 /* This function will basically setup the CANopen node */
@@ -95,7 +96,9 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
     CO_config_t co_config = {0};
     OD_INIT_CONFIG(co_config); /* helper macro from OD.h */
     co_config.CNT_LEDS = 1;
+#if ((CO_CONFIG_LSS) & CO_CONFIG_LSS_SLAVE) != 0
     co_config.CNT_LSS_SLV = 1;
+#endif
     config_ptr = &co_config;
 #endif /* CO_MULTIPLE_OD */
 
@@ -125,6 +128,11 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
     return 0;
 }
 
+__weak uint32_t
+canopen_app_get_time() {
+    return HAL_GetTick() * 1000;
+}
+
 int
 canopen_app_resetCommunication() {
     /* CANopen communication reset - initialize CANopen objects *******************/
@@ -144,6 +152,7 @@ canopen_app_resetCommunication() {
         return 1;
     }
 
+#if ((CO_CONFIG_LSS) & CO_CONFIG_LSS_SLAVE) != 0
     CO_LSS_address_t lssAddress = {.identity = {.vendorID = OD_PERSIST_COMM.x1018_identity.vendor_ID,
                                                 .productCode = OD_PERSIST_COMM.x1018_identity.productCode,
                                                 .revisionNumber = OD_PERSIST_COMM.x1018_identity.revisionNumber,
@@ -153,6 +162,7 @@ canopen_app_resetCommunication() {
         log_printf("Error: LSS slave initialization failed: %d\n", err);
         return 2;
     }
+#endif
 
     canopenNodeSTM32->activeNodeID = canopenNodeSTM32->desiredNodeID;
     uint32_t errInfo = 0;
@@ -188,7 +198,9 @@ canopen_app_resetCommunication() {
     }
 
     /* Configure Timer interrupt function for execution every 1 millisecond */
-    HAL_TIM_Base_Start_IT(canopenNodeSTM32->timerHandle); // 1ms interrupt
+    if (canopenNodeSTM32->timerHandle != NULL) {
+        HAL_TIM_Base_Start_IT(canopenNodeSTM32->timerHandle); // 1ms interrupt
+    }
 
     /* Configure CAN transmit and receive interrupt */
 
@@ -209,7 +221,7 @@ canopen_app_resetCommunication() {
 
     log_printf("CANopenNode - Running...\n");
     fflush(stdout);
-    time_old = time_current = HAL_GetTick();
+    time_old = time_current = interrupt_time_old = canopen_app_get_time();
     return 0;
 }
 
@@ -217,24 +229,28 @@ void
 canopen_app_process() {
     /* loop for normal program execution ******************************************/
     /* get time difference since last function call */
-    time_current = HAL_GetTick();
+    time_current = canopen_app_get_time();
 
     if ((time_current - time_old) > 0) { // Make sure more than 1ms elapsed
         /* CANopen process */
         CO_NMT_reset_cmd_t reset_status;
-        uint32_t timeDifference_us = (time_current - time_old) * 1000;
+        uint32_t timeDifference_us = time_current - time_old;
         time_old = time_current;
         reset_status = CO_process(CO, false, timeDifference_us, NULL);
+#if ((CO_CONFIG_LEDS) & CO_CONFIG_LEDS_ENABLE) != 0
         canopenNodeSTM32->outStatusLEDRed = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
         canopenNodeSTM32->outStatusLEDGreen = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
+#endif
 
         if (reset_status == CO_RESET_COMM) {
-            /* delete objects from memory */
-            HAL_TIM_Base_Stop_IT(canopenNodeSTM32->timerHandle);
-            CO_CANsetConfigurationMode((void*)canopenNodeSTM32);
-            CO_delete(CO);
+            /* The same objects are initialized again, as in the examples of CANopenNode, instead of
+             * deleted and allocated again (CO_delete, canopen_app_init): the application may keep
+             * pointers to them (e.g. the SDO clients) */
+            if (canopenNodeSTM32->timerHandle != NULL) {
+                HAL_TIM_Base_Stop_IT(canopenNodeSTM32->timerHandle);
+            }
             log_printf("CANopenNode Reset Communication request\n");
-            canopen_app_init(canopenNodeSTM32); // Reset Communication routine
+            canopen_app_resetCommunication(); // Reset Communication routine
         } else if (reset_status == CO_RESET_APP) {
             log_printf("CANopenNode Device Reset\n");
             HAL_NVIC_SystemReset(); // Reset the STM32 Microcontroller
@@ -249,7 +265,12 @@ canopen_app_interrupt(void) {
     if (!CO->nodeIdUnconfigured && CO->CANmodule->CANnormal) {
         bool_t syncWas = false;
         /* get time difference since last function call */
-        uint32_t timeDifference_us = 1000; // 1ms second
+        time_current = canopen_app_get_time();
+        uint32_t timeDifference_us = time_current - interrupt_time_old;
+        interrupt_time_old = time_current;
+        if (timeDifference_us == 0) {
+            timeDifference_us = 1000; // 1ms
+        }
 
 #if (CO_CONFIG_SYNC) & CO_CONFIG_SYNC_ENABLE
         syncWas = CO_process_SYNC(CO, timeDifference_us, NULL);
