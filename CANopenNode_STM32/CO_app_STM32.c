@@ -233,8 +233,10 @@ canopen_app_process() {
         uint32_t timeDifference_us = time_current - time_old;
         time_old = time_current;
         reset_status = CO_process(CO, false, timeDifference_us, NULL);
+#if ((CO_CONFIG_LEDS) & CO_CONFIG_LEDS_ENABLE) != 0
         canopenNodeSTM32->outStatusLEDRed = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
         canopenNodeSTM32->outStatusLEDGreen = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
+#endif
 
         if (reset_status == CO_RESET_COMM) {
             /* delete objects from memory */
