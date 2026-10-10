@@ -31,7 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "i2c.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -46,7 +46,9 @@ extern "C" {
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
-
+#ifndef CO_CONFIG_STORAGE
+#define CO_CONFIG_STORAGE (CO_CONFIG_STORAGE_ENABLE)
+#endif
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
@@ -129,6 +131,8 @@ void Error_Handler(void);
 #define LED1_GPIO_Port GPIOD
 #define LED2_Pin GPIO_PIN_6
 #define LED2_GPIO_Port GPIOD
+#define CAN_CFG_Pin GPIO_PIN_4
+#define CAN_CFG_GPIO_Port GPIOB
 #define MC_EnB_Pin GPIO_PIN_5
 #define MC_EnB_GPIO_Port GPIOB
 #define FDCAN1_STBY_Pin GPIO_PIN_0
