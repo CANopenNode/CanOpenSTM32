@@ -26,12 +26,13 @@
  */
 #include "CO_app_STM32.h"
 #include "CANopen.h"
+#include "CO_eeprom_STM32.h"
 #include "main.h"
 #include <inttypes.h>
 #include <stdio.h>
 
-#include "CO_storageBlank.h"
 #include "OD.h"
+#include "storage/CO_storageEeprom.h"
 
 CANopenNodeSTM32*
     canopenNodeSTM32; // It will be set by canopen_app_init and will be used across app to get access to CANOpen objects
@@ -69,6 +70,7 @@ CO_t* CO = NULL; /* CANopen object */
 // Global variables
 uint32_t time_old, time_current;
 CO_ReturnError_t err;
+uint32_t storageInitError = 0;
 
 /* This function will basically setup the CANopen node */
 int
@@ -85,7 +87,7 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
                                                    .attr = CO_storage_cmd | CO_storage_restore,
                                                    .addrNV = NULL}};
     uint8_t storageEntriesCount = sizeof(storageEntries) / sizeof(storageEntries[0]);
-    uint32_t storageInitError = 0;
+    storageInitError = 0;
 #endif
 
     /* Allocate memory */
@@ -111,12 +113,25 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
     canopenNodeSTM32->canOpenStack = CO;
 
 #if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
-    err = CO_storageBlank_init(&storage, CO->CANmodule, OD_ENTRY_H1010_storeParameters,
-                               OD_ENTRY_H1011_restoreDefaultParameters, storageEntries, storageEntriesCount,
-                               &storageInitError);
+    err = CO_storageEeprom_init(&storage, CO->CANmodule, NULL, OD_ENTRY_H1010_storeParameters,
+                                OD_ENTRY_H1011_restoreDefaultParameters, storageEntries, storageEntriesCount,
+                                &storageInitError);
+#if defined(CAN_CFG_GPIO_Port) && defined(CAN_CFG_Pin)      // only if CAN_CFG pin exists ->
+    if (HAL_GPIO_ReadPin(CAN_CFG_GPIO_Port, CAN_CFG_Pin)) { // skip if device is in "CFG" mode!
+#endif
+        if (err == CO_ERROR_DATA_CORRUPT) {
+            if (primeEeprom()) {
+                // clear storage errors
+                err = CO_ERROR_NO;
+                storageInitError = 0;
+            }
+        }
+#if defined(CAN_CFG_GPIO_Port) && defined(CAN_CFG_Pin)
+    }
+#endif
 
     if (err != CO_ERROR_NO && err != CO_ERROR_DATA_CORRUPT) {
-        log_printf("Error: Storage %d\n", storageInitError);
+        log_printf("Error: Storage %" PRIu32 "\n", storageInitError);
         return 2;
     }
 #endif

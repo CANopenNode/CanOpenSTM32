@@ -45,8 +45,6 @@
 #error This STM32 does not support CAN or FDCAN
 #endif
 
-#undef CO_CONFIG_STORAGE_ENABLE // We don't need the Storage option; implement it based on your use case and remove this line
-
 #ifdef CO_DRIVER_CUSTOM
 #include "CO_driver_custom.h"
 #endif
@@ -57,6 +55,16 @@ extern "C" {
 
 /* Stack configuration override default values.
  * For more information see file CO_config.h. */
+
+/* Configure storage */
+#ifndef CO_CONFIG_STORAGE
+#define CO_CONFIG_STORAGE (0)
+#endif
+
+/* Enable CRC-16 calculation. Required by CO_storageEeprom / CO_eeprom_STM32. */
+#if (((CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE) != 0)
+#define CO_CONFIG_CRC16 (CO_CONFIG_CRC16_ENABLE)
+#endif
 
 /* Basic definitions. If big endian, CO_SWAP_xx macros must swap bytes. */
 #define CO_LITTLE_ENDIAN
@@ -129,6 +137,11 @@ typedef struct {
     uint8_t attr;
     /* Additional variables (target specific) */
     void* addrNV;
+    void* storageModule;
+    uint16_t crc;
+    size_t eepromAddrSignature;
+    size_t eepromAddr;
+    size_t offset;
 } CO_storage_entry_t;
 
 /* Synchronization between CAN receive and message processing threads. */
@@ -197,7 +210,8 @@ typedef struct {
 
 /**
  * \brief           Number of priority bits the CPU implements, used for correct value alignment.
- *                  If not provided, we try to use the value defined in the CPU header with the ARM Cortex-M defined macro.
+ *                  If not provided, we try to use the value defined in the CPU header with the ARM Cortex-M defined
+ * macro.
  */
 #ifndef CO_LOCK_BASEPRI_NVIC_PRIO_BITS
 #define CO_LOCK_BASEPRI_NVIC_PRIO_BITS __NVIC_PRIO_BITS
