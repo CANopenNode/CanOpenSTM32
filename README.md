@@ -14,3 +14,21 @@ At first run, the EEPROM does not yet contain a valid configuration. The EEPROM 
 The Microchip 24AA256UID contains a built-in serial number. This serial number is used to fill the serial number object (index 0x1018 subindex 0x04) in the object dictionary.
 
 Modified persist_comm objects are stored into EEPROM by writing value UNSIGNED32 0x65766173 to object 0x1010 subindex 0x01.
+
+
+Only changes required to user code:
+
+in main.h:
+If the application uses a separate pair of .c/.h files per peripheral, add...
+#include "i2c.h"
+...to main.h. If your application only consists of a main.c/main.h, this is not needed.
+
+in main.h add:
+
+#ifndef CO_CONFIG_STORAGE
+#define CO_CONFIG_STORAGE (CO_CONFIG_STORAGE_ENABLE)
+#endif
+
+in eeprom.h:
+Make sure that HI2C_EEPROM matches the I2C port handle used for the EEPROM.
+#define HI2C_EEPROM          &hi2c1
