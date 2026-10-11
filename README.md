@@ -19,16 +19,22 @@ Modified persist_comm objects are stored into EEPROM by writing value UNSIGNED32
 Only changes required to user code:
 
 in main.h:
-If the application uses a separate pair of .c/.h files per peripheral, add...
+If the application uses a separate pair of .c/.h files per peripheral, add following lines
+to main.h. If your application only consists of a main.c/main.h, this is not needed.
+
+```c
+/* make i2c port public */
 #include "i2c.h"
-...to main.h. If your application only consists of a main.c/main.h, this is not needed.
+```
 
-in main.h add:
+Also in main.h add following lines:
 
+```c
+/* enable storage functionality in CANopenNode_STM32 */
 #ifndef CO_CONFIG_STORAGE
 #define CO_CONFIG_STORAGE (CO_CONFIG_STORAGE_ENABLE)
 #endif
 
-in eeprom.h:
-Make sure that HI2C_EEPROM matches the I2C port handle used for the EEPROM.
-#define HI2C_EEPROM          &hi2c1
+/* assign the i2c port to which the EEPROM is connected */
+#define HI2C_EEPROM          &hi2c1    // assign the handle of the i2c port to which the EEPROM is connected
+```

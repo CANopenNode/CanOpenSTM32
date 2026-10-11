@@ -31,7 +31,10 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
+/* make i2c port public */
 #include "i2c.h"
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -46,11 +49,15 @@ extern "C" {
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
+
+/* enable storage functionality in CANopenNode_STM32 */
 #ifndef CO_CONFIG_STORAGE
 #define CO_CONFIG_STORAGE (CO_CONFIG_STORAGE_ENABLE)
 #endif
 
+/* assign the i2c port to which the EEPROM is connected */
 #define HI2C_EEPROM          &hi2c1
+
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
