@@ -18,8 +18,6 @@
  * MICROCHIP 24AA256UID EEPROM STORAGE DEFINITIONS
  */
 
-#define HI2C_EEPROM          &hi2c1
-
 #define EEPROM_WRITE_TIME_MS 5   // maximum write cycle time [ms]
 #define I2C_TIMEOUT_MS       250 // I2C bus timeout [ms]
 

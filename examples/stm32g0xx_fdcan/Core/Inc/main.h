@@ -49,6 +49,8 @@ extern "C" {
 #ifndef CO_CONFIG_STORAGE
 #define CO_CONFIG_STORAGE (CO_CONFIG_STORAGE_ENABLE)
 #endif
+
+#define HI2C_EEPROM          &hi2c1
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
