@@ -56,7 +56,8 @@ extern "C" {
 #endif
 
 /* assign the i2c port to which the EEPROM is connected */
-#define HI2C_EEPROM          &hi2c1
+#define HI2C_EEPROM    &hi2c1
+#define I2C_TIMEOUT_MS 250 // I2C bus timeout [ms]
 
 /* USER CODE END EM */
 

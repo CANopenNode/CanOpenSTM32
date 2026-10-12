@@ -54,8 +54,8 @@ eeprom_init_mc() {
     // Check if Microchip 24AA256UID EEPROM device
     if ((serial[0] == MC_EEP_MFR_ID) && (serial[1] == MC_EEP_DEVICE_ID)) {
         // set serial number
-        device_serial_number =
-            (uint32_t)serial[2] << 24 | (uint32_t)serial[3] << 16 | (uint32_t)serial[4] << 8 | (uint32_t)serial[5];
+        device_serial_number = (uint32_t)serial[2] << 24 | (uint32_t)serial[3] << 16 | (uint32_t)serial[4] << 8
+                               | (uint32_t)serial[5];
 
         return true;
     }

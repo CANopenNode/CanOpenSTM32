@@ -37,7 +37,7 @@ typedef struct {
                             * might not always be the final NodeID, after calling canopen_app_init() you should check
                             * ActiveNodeID of CANopenNodeSTM32 structure for assigned Node ID.
                             */
-    uint8_t activeNodeID;  /* Assigned Node ID */
+    uint8_t  activeNodeID; /* Assigned Node ID */
     uint16_t baudrate;     /* This is the baudrate you've set in your CubeMX Configuration */
 
     /*
@@ -55,7 +55,7 @@ typedef struct {
 
     uint8_t outStatusLEDGreen; // This will be updated by the stack - Use them for the LED management
     uint8_t outStatusLEDRed;   // This will be updated by the stack - Use them for the LED management
-    CO_t* canOpenStack;
+    CO_t*   canOpenStack;
 
 } CANopenNodeSTM32;
 

@@ -68,9 +68,9 @@ CANopenNodeSTM32*
 CO_t* CO = NULL; /* CANopen object */
 
 // Global variables
-uint32_t time_old, time_current;
+uint32_t         time_old, time_current;
 CO_ReturnError_t err;
-uint32_t storageInitError = 0;
+uint32_t         storageInitError = 0;
 
 /* This function will basically setup the CANopen node */
 int
@@ -80,14 +80,14 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
     canopenNodeSTM32 = _canopenNodeSTM32;
 
 #if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
-    static CO_storage_t storage;
-    static CO_storage_entry_t storageEntries[] = {{.addr = &OD_PERSIST_COMM,
-                                                   .len = sizeof(OD_PERSIST_COMM),
-                                                   .subIndexOD = 2,
-                                                   .attr = CO_storage_cmd | CO_storage_restore,
-                                                   .addrNV = NULL}};
-    uint8_t storageEntriesCount = sizeof(storageEntries) / sizeof(storageEntries[0]);
-    storageInitError = 0;
+    static CO_storage_t       storage;
+    static CO_storage_entry_t storageEntries[]    = {{.addr       = &OD_PERSIST_COMM,
+                                                      .len        = sizeof(OD_PERSIST_COMM),
+                                                      .subIndexOD = 2,
+                                                      .attr       = CO_storage_cmd | CO_storage_restore,
+                                                      .addrNV     = NULL}};
+    uint8_t                   storageEntriesCount = sizeof(storageEntries) / sizeof(storageEntries[0]);
+    storageInitError                              = 0;
 #endif
 
     /* Allocate memory */
@@ -96,9 +96,9 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
     /* example usage of CO_MULTIPLE_OD (but still single OD here) */
     CO_config_t co_config = {0};
     OD_INIT_CONFIG(co_config); /* helper macro from OD.h */
-    co_config.CNT_LEDS = 1;
+    co_config.CNT_LEDS    = 1;
     co_config.CNT_LSS_SLV = 1;
-    config_ptr = &co_config;
+    config_ptr            = &co_config;
 #endif /* CO_MULTIPLE_OD */
 
     uint32_t heapMemoryUsed;
@@ -116,13 +116,16 @@ canopen_app_init(CANopenNodeSTM32* _canopenNodeSTM32) {
     err = CO_storageEeprom_init(&storage, CO->CANmodule, NULL, OD_ENTRY_H1010_storeParameters,
                                 OD_ENTRY_H1011_restoreDefaultParameters, storageEntries, storageEntriesCount,
                                 &storageInitError);
+/*
+ * Write default PERSIST_COMM data to EEPROM when EEPROM contents are corrupt
+ */
 #if defined(CAN_CFG_GPIO_Port) && defined(CAN_CFG_Pin)      // only if CAN_CFG pin exists ->
     if (HAL_GPIO_ReadPin(CAN_CFG_GPIO_Port, CAN_CFG_Pin)) { // skip if device is in "CFG" mode!
 #endif
         if (err == CO_ERROR_DATA_CORRUPT) {
             if (primeEeprom()) {
                 // clear storage errors
-                err = CO_ERROR_NO;
+                err              = CO_ERROR_NO;
                 storageInitError = 0;
             }
         }
@@ -159,10 +162,10 @@ canopen_app_resetCommunication() {
         return 1;
     }
 
-    CO_LSS_address_t lssAddress = {.identity = {.vendorID = OD_PERSIST_COMM.x1018_identity.vendor_ID,
-                                                .productCode = OD_PERSIST_COMM.x1018_identity.productCode,
+    CO_LSS_address_t lssAddress = {.identity = {.vendorID       = OD_PERSIST_COMM.x1018_identity.vendor_ID,
+                                                .productCode    = OD_PERSIST_COMM.x1018_identity.productCode,
                                                 .revisionNumber = OD_PERSIST_COMM.x1018_identity.revisionNumber,
-                                                .serialNumber = OD_PERSIST_COMM.x1018_identity.serialNumber}};
+                                                .serialNumber   = OD_PERSIST_COMM.x1018_identity.serialNumber}};
     err = CO_LSSinit(CO, &lssAddress, &canopenNodeSTM32->desiredNodeID, &canopenNodeSTM32->baudrate);
     if (err != CO_ERROR_NO) {
         log_printf("Error: LSS slave initialization failed: %d\n", err);
@@ -170,7 +173,7 @@ canopen_app_resetCommunication() {
     }
 
     canopenNodeSTM32->activeNodeID = canopenNodeSTM32->desiredNodeID;
-    uint32_t errInfo = 0;
+    uint32_t errInfo               = 0;
 
     err = CO_CANopenInit(CO,                   /* CANopen object */
                          NULL,                 /* alternate NMT */
@@ -237,11 +240,11 @@ canopen_app_process() {
     if ((time_current - time_old) > 0) { // Make sure more than 1ms elapsed
         /* CANopen process */
         CO_NMT_reset_cmd_t reset_status;
-        uint32_t timeDifference_us = (time_current - time_old) * 1000;
-        time_old = time_current;
-        reset_status = CO_process(CO, false, timeDifference_us, NULL);
-        canopenNodeSTM32->outStatusLEDRed = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
-        canopenNodeSTM32->outStatusLEDGreen = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
+        uint32_t           timeDifference_us = (time_current - time_old) * 1000;
+        time_old                             = time_current;
+        reset_status                         = CO_process(CO, false, timeDifference_us, NULL);
+        canopenNodeSTM32->outStatusLEDRed    = CO_LED_RED(CO->LEDs, CO_LED_CANopen);
+        canopenNodeSTM32->outStatusLEDGreen  = CO_LED_GREEN(CO->LEDs, CO_LED_CANopen);
 
         if (reset_status == CO_RESET_COMM) {
             /* delete objects from memory */

@@ -52,8 +52,8 @@ CO_eeprom_init(void* storageModule) {
         return false;
     }
 
-    eepromAddrNextAuto = CO_EEP_START_AUTO;
-    eepromAddrNextProt = CO_EEP_START_PROT;
+    eepromAddrNextAuto                          = CO_EEP_START_AUTO;
+    eepromAddrNextProt                          = CO_EEP_START_PROT;
     OD_PERSIST_COMM.x1018_identity.serialNumber = device_serial_number;
 
     /* If eeprom chip is OK, this will return "true" */
@@ -74,7 +74,7 @@ CO_eeprom_getAddr(void* storageModule, bool_t isAuto, size_t len, bool_t* overfl
         }
     } else {
         /* addresses for storage on command must be page aligned */
-        addr = eepromAddrNextProt;
+        addr              = eepromAddrNextProt;
         size_t lenAligned = len & (~(MC_EEP_PAGE_SIZE - 1));
         if (lenAligned < len) {
             lenAligned += MC_EEP_PAGE_SIZE;
@@ -106,7 +106,7 @@ CO_eeprom_readBlock(void* storageModule, uint8_t* data, size_t eepromAddr, size_
 /******************************************************************************/
 bool_t
 CO_eeprom_writeBlock(void* storageModule, uint8_t* data, size_t eepromAddr, size_t len) {
-    size_t idx = 0;
+    size_t   idx             = 0;
     uint32_t eep_write_timer = 0;
 
     if (HAL_I2C_IsDeviceReady(HI2C_EEPROM, MC_EEP_I2C_ADDR << 1, 3, I2C_TIMEOUT_MS) != HAL_OK) {
@@ -156,8 +156,8 @@ CO_eeprom_getCrcBlock(void* storageModule, size_t eepromAddr, size_t len) {
 #define BUF_SIZE 250
 
     uint16_t crc = 0;
-    uint8_t buf[BUF_SIZE];
-    uint8_t subLen;
+    uint8_t  buf[BUF_SIZE];
+    uint8_t  subLen;
 
     while (len > 0) {
         if (len <= BUF_SIZE) {
@@ -204,9 +204,9 @@ CO_eeprom_updateByte(void* storageModule, uint8_t data, size_t eepromAddr) {
 bool_t
 primeEeprom() {
     /* save default PERSIST_COMM data to the eeprom */
-    bool_t writeOk = CO_eeprom_writeBlock(NULL, (uint8_t*)&OD_PERSIST_COMM, CO_EEP_START_PROT + MC_EEP_PAGE_SIZE,
-                                          sizeof(OD_PERSIST_COMM_t));
-    uint16_t crc = crc16_ccitt((uint8_t*)&OD_PERSIST_COMM, sizeof(OD_PERSIST_COMM_t), 0);
+    bool_t   writeOk = CO_eeprom_writeBlock(NULL, (uint8_t*)&OD_PERSIST_COMM, CO_EEP_START_PROT + MC_EEP_PAGE_SIZE,
+                                            sizeof(OD_PERSIST_COMM_t));
+    uint16_t crc     = crc16_ccitt((uint8_t*)&OD_PERSIST_COMM, sizeof(OD_PERSIST_COMM_t), 0);
 
     /* Verify, if data in eeprom are equal */
     uint16_t crc_read = CO_eeprom_getCrcBlock(NULL, CO_EEP_START_PROT + MC_EEP_PAGE_SIZE, sizeof(OD_PERSIST_COMM_t));
@@ -216,8 +216,8 @@ primeEeprom() {
 
     /* Write signature (see CO_storageEeprom_init() for info) */
     uint16_t signatureOfEntry = sizeof(OD_PERSIST_COMM_t);
-    uint32_t signature = (((uint32_t)crc) << 16) | signatureOfEntry;
-    writeOk = CO_eeprom_writeBlock(NULL, (uint8_t*)&signature, CO_EEP_START_PROT, sizeof(signature));
+    uint32_t signature        = (((uint32_t)crc) << 16) | signatureOfEntry;
+    writeOk                   = CO_eeprom_writeBlock(NULL, (uint8_t*)&signature, CO_EEP_START_PROT, sizeof(signature));
 
     /* verify signature and write */
     uint32_t signatureRead;
