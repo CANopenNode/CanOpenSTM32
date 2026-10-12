@@ -57,6 +57,29 @@ static CO_CANmodule_t* volatile CANModule_local = NULL; /* Local instance of glo
 #endif
 #endif /* CO_STM32_FDCAN_Driver */
 
+/* Interrupts this driver services, enabled in CO_CANmodule_init() and disabled again in CO_CANmodule_disable() */
+#ifdef CO_STM32_FDCAN_Driver
+#define CO_STM32_ACTIVE_ITS                                                                                            \
+    (FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_RX_FIFO1_NEW_MESSAGE | FDCAN_IT_TX_COMPLETE | FDCAN_IT_TX_FIFO_EMPTY     \
+     | FDCAN_IT_BUS_OFF | FDCAN_IT_ARB_PROTOCOL_ERROR | FDCAN_IT_DATA_PROTOCOL_ERROR | FDCAN_IT_ERROR_PASSIVE          \
+     | FDCAN_IT_ERROR_WARNING)
+#else
+#define CO_STM32_ACTIVE_ITS (CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_RX_FIFO1_MSG_PENDING | CAN_IT_TX_MAILBOX_EMPTY)
+#endif
+
+/**
+ * \brief           Selects how this driver connects its handlers to the HAL (FD)CAN interrupt callbacks
+ * \note            With `USE_HAL_(FD)CAN_REGISTER_CALLBACKS` enabled in the HAL config, the handlers are
+ *                  attached to the CANopen peripheral handle and no global `HAL_xxx_Callback()` is defined, so
+ *                  another CAN peripheral can freely define its own. With it disabled, the driver defines the
+ *                  global callbacks itself, so no other CAN peripheral can use them
+ */
+#ifdef CO_STM32_FDCAN_Driver
+#define CO_STM32_REGISTER_CALLBACKS (USE_HAL_FDCAN_REGISTER_CALLBACKS == 1)
+#else
+#define CO_STM32_REGISTER_CALLBACKS (USE_HAL_CAN_REGISTER_CALLBACKS == 1)
+#endif
+
 /**
  * \brief           Returns the HAL instance pointer for the [FD]CAN instance for the MCU
  *                  hardware implementation from the CO_CanHandle CanOpen instance
@@ -113,6 +136,11 @@ static CO_CANmodule_t* volatile CANModule_local = NULL; /* Local instance of glo
 #ifdef CO_STM32_FDCAN_Driver
 static void prv_fdcan_bus_off_check_reset(FDCAN_HandleTypeDef* hfdcan);
 #endif /* CO_STM32_FDCAN_Driver */
+
+#if CO_STM32_REGISTER_CALLBACKS
+static CO_ReturnError_t prv_attach_hal_callbacks(can_periph_handle_t* periphhandle);
+static void prv_detach_hal_callbacks(can_periph_handle_t* periphhandle);
+#endif /* CO_STM32_REGISTER_CALLBACKS */
 
 /**
  * \brief           Send CAN message to network
@@ -418,6 +446,13 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
         canstm32handle->HWInitFunction();
     }
 
+#if CO_STM32_REGISTER_CALLBACKS
+    /* Must follow HWInitFunction() as HAL_xxx_Init() overwrites the callback pointers with its defaults */
+    if (prv_attach_hal_callbacks(canstm32handle->CANHandle) != CO_ERROR_NO) {
+        return CO_ERROR_ILLEGAL_ARGUMENT;
+    }
+#endif
+
     /*
      * Configure global filter that is used as last check if message did not pass any of other filters:
      *
@@ -463,20 +498,12 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
     /* Enable notifications */
     /* Activate the CAN notification interrupts */
 #ifdef CO_STM32_FDCAN_Driver
-    if (HAL_FDCAN_ActivateNotification(canstm32handle->CANHandle,
-                                       0 | FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_RX_FIFO1_NEW_MESSAGE
-                                           | FDCAN_IT_TX_COMPLETE | FDCAN_IT_TX_FIFO_EMPTY | FDCAN_IT_BUS_OFF
-                                           | FDCAN_IT_ARB_PROTOCOL_ERROR | FDCAN_IT_DATA_PROTOCOL_ERROR
-                                           | FDCAN_IT_ERROR_PASSIVE | FDCAN_IT_ERROR_WARNING,
-                                       FDCAN_BUFFER_INDEXES)
+    if (HAL_FDCAN_ActivateNotification(canstm32handle->CANHandle, CO_STM32_ACTIVE_ITS, FDCAN_BUFFER_INDEXES)
         != HAL_OK) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
 #else
-    if (HAL_CAN_ActivateNotification(canstm32handle->CANHandle, CAN_IT_RX_FIFO0_MSG_PENDING
-                                                                    | CAN_IT_RX_FIFO1_MSG_PENDING
-                                                                    | CAN_IT_TX_MAILBOX_EMPTY)
-        != HAL_OK) {
+    if (HAL_CAN_ActivateNotification(canstm32handle->CANHandle, CO_STM32_ACTIVE_ITS) != HAL_OK) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
 #endif
@@ -492,14 +519,21 @@ CO_CANmodule_disable(CO_CANmodule_t* CANmodule) {
         can_periph_handle_t* periphhandle = GET_CAN_PERIPH_HANDLE(CANmodule);
         HAL_StatusTypeDef status;
 
+        /* HAL_xxx_Stop() does not clear the interrupt enable bits. Clear them first, or a frame still in a RX FIFO
+         * re-enters the interrupt forever once the handlers are detached */
 #ifdef CO_STM32_FDCAN_Driver
+        HAL_FDCAN_DeactivateNotification(periphhandle, CO_STM32_ACTIVE_ITS);
         status = HAL_FDCAN_Stop(periphhandle);
 #else
+        HAL_CAN_DeactivateNotification(periphhandle, CO_STM32_ACTIVE_ITS);
         status = HAL_CAN_Stop(periphhandle);
 #endif
         if (status != HAL_OK) {
             (void)status; /* might be unused */
         }
+#if CO_STM32_REGISTER_CALLBACKS
+        prv_detach_hal_callbacks(periphhandle);
+#endif
     }
 }
 
@@ -708,6 +742,11 @@ CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
 /* Hardware specific callback functions implemented here                      */
 /******************************************************************************/
 
+/*
+ * With CO_STM32_REGISTER_CALLBACKS set, each handler is a static function that prv_attach_hal_callbacks() registers
+ * on the CANopen peripheral handle. Otherwise it is the HAL's global callback itself. The body is the same either way
+ */
+
 #ifdef CO_STM32_FDCAN_Driver
 
 /**
@@ -727,49 +766,73 @@ prv_fdcan_bus_off_check_reset(FDCAN_HandleTypeDef* hfdcan) {
 }
 
 /**
- * \brief           Rx FIFO 0 callback.
+ * \brief           Rx FIFO 0 new message handler
  * \param[in]       hfdcan: pointer to an FDCAN_HandleTypeDef structure that contains
  *                      the configuration information for the specified FDCAN.
  * \param[in]       RxFifo0ITs: indicates which Rx FIFO 0 interrupts are signaled.
  */
+#if CO_STM32_REGISTER_CALLBACKS
+static void
+prv_fdcan_rx_fifo0_handler(FDCAN_HandleTypeDef* hfdcan, uint32_t RxFifo0ITs)
+#else
 void
-HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef* hfdcan, uint32_t RxFifo0ITs) {
+HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef* hfdcan, uint32_t RxFifo0ITs)
+#endif
+{
     if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) {
         prv_read_can_received_msg(CANModule_local, FDCAN_RX_FIFO0, RxFifo0ITs);
     }
 }
 
 /**
- * \brief           Rx FIFO 1 callback.
+ * \brief           Rx FIFO 1 new message handler
  * \param[in]       hfdcan: pointer to an FDCAN_HandleTypeDef structure that contains
  *                      the configuration information for the specified FDCAN.
- * \param[in]       RxFifo1ITs: indicates which Rx FIFO 0 interrupts are signaled.
+ * \param[in]       RxFifo1ITs: indicates which Rx FIFO 1 interrupts are signaled.
  */
+#if CO_STM32_REGISTER_CALLBACKS
+static void
+prv_fdcan_rx_fifo1_handler(FDCAN_HandleTypeDef* hfdcan, uint32_t RxFifo1ITs)
+#else
 void
-HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef* hfdcan, uint32_t RxFifo1ITs) {
+HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef* hfdcan, uint32_t RxFifo1ITs)
+#endif
+{
     if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) {
         prv_read_can_received_msg(CANModule_local, FDCAN_RX_FIFO1, RxFifo1ITs);
     }
 }
 
 /**
- * \brief           TX buffer has been well transmitted callback
+ * \brief           TX buffer has been well transmitted handler
  * \param[in]       hfdcan: pointer to an FDCAN_HandleTypeDef structure that contains
  *                      the configuration information for the specified FDCAN.
  * \param[in]       BufferIndexes: Bits of successfully sent TX buffers
  */
+#if CO_STM32_REGISTER_CALLBACKS
+static void
+prv_fdcan_tx_buffer_complete_handler(FDCAN_HandleTypeDef* hfdcan, uint32_t BufferIndexes)
+#else
 void
-HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t BufferIndexes) {
+HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t BufferIndexes)
+#endif
+{
     prv_process_tx_complete(CANModule_local, BufferIndexes);
 }
 
 /**
- * \brief           Error callback.
+ * \brief           Error handler
  * \param[in]       hfdcan: pointer to an FDCAN_HandleTypeDef structure that contains
  *                      the configuration information for the specified FDCAN
  */
+#if CO_STM32_REGISTER_CALLBACKS
+static void
+prv_fdcan_error_handler(FDCAN_HandleTypeDef* hfdcan)
+#else
 void
-HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef* hfdcan) {
+HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef* hfdcan)
+#endif
+{
     (void)hfdcan;
 
     /* Do we do it here or in process only? */
@@ -777,7 +840,7 @@ HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef* hfdcan) {
 }
 
 /**
- * \brief           Error status callback
+ * \brief           Error status handler
  * \param[in]       hfdcan: pointer to an FDCAN_HandleTypeDef structure that contains
  *                      the configuration information for the specified FDCAN.
  * \param[in]       ErrorStatusITs indicates which Error Status interrupts are signaled.
@@ -786,8 +849,14 @@ HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef* hfdcan) {
  * Implements manual FDCAN Bus-Off recovery as described in
  * https://community.st.com/stm32-mcus-60/how-to-recover-from-bus-off-state-with-fdcan-on-stm32-mcus-158678.
  */
+#if CO_STM32_REGISTER_CALLBACKS
+static void
+prv_fdcan_error_status_handler(FDCAN_HandleTypeDef* hfdcan, uint32_t ErrorStatusITs)
+#else
 void
-HAL_FDCAN_ErrorStatusCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t ErrorStatusITs) {
+HAL_FDCAN_ErrorStatusCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t ErrorStatusITs)
+#endif
+{
     (void)hfdcan;
     (void)ErrorStatusITs;
 
@@ -802,22 +871,34 @@ HAL_FDCAN_ErrorStatusCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t ErrorStatusI
 #else /* CO_STM32_FDCAN_Driver */
 
 /**
- * \brief           Rx FIFO 0 callback.
+ * \brief           Rx FIFO 0 message pending handler
  * \param[in]       hcan: pointer to an CAN_HandleTypeDef structure that contains
  *                      the configuration information for the specified CAN.
  */
+#if CO_STM32_REGISTER_CALLBACKS
+static void
+prv_can_rx_fifo0_msg_pending_handler(CAN_HandleTypeDef* hcan)
+#else
 void
-HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef* hcan) {
+HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef* hcan)
+#endif
+{
     prv_read_can_received_msg(CANModule_local, CAN_RX_FIFO0, 0);
 }
 
 /**
- * \brief           Rx FIFO 1 callback.
+ * \brief           Rx FIFO 1 message pending handler
  * \param[in]       hcan: pointer to an CAN_HandleTypeDef structure that contains
  *                      the configuration information for the specified CAN.
  */
+#if CO_STM32_REGISTER_CALLBACKS
+static void
+prv_can_rx_fifo1_msg_pending_handler(CAN_HandleTypeDef* hcan)
+#else
 void
-HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef* hcan) {
+HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef* hcan)
+#endif
+{
     prv_read_can_received_msg(CANModule_local, CAN_RX_FIFO1, 0);
 }
 
@@ -826,8 +907,14 @@ HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef* hcan) {
  *
  * \param           hcan
  */
+#if CO_STM32_REGISTER_CALLBACKS
+static void
+prv_can_tx_mailbox0_complete_handler(CAN_HandleTypeDef* hcan)
+#else
 void
-HAL_CAN_TxMailbox0CompleteCallback(CAN_HandleTypeDef* hcan) {
+HAL_CAN_TxMailbox0CompleteCallback(CAN_HandleTypeDef* hcan)
+#endif
+{
     prv_process_tx_complete(CANModule_local, CAN_TX_MAILBOX0);
 }
 
@@ -836,8 +923,14 @@ HAL_CAN_TxMailbox0CompleteCallback(CAN_HandleTypeDef* hcan) {
  *
  * \param           hcan
  */
+#if CO_STM32_REGISTER_CALLBACKS
+static void
+prv_can_tx_mailbox1_complete_handler(CAN_HandleTypeDef* hcan)
+#else
 void
-HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef* hcan) {
+HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef* hcan)
+#endif
+{
     prv_process_tx_complete(CANModule_local, CAN_TX_MAILBOX1);
 }
 
@@ -846,9 +939,81 @@ HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef* hcan) {
  *
  * \param           hcan
  */
+#if CO_STM32_REGISTER_CALLBACKS
+static void
+prv_can_tx_mailbox2_complete_handler(CAN_HandleTypeDef* hcan)
+#else
 void
-HAL_CAN_TxMailbox2CompleteCallback(CAN_HandleTypeDef* hcan) {
+HAL_CAN_TxMailbox2CompleteCallback(CAN_HandleTypeDef* hcan)
+#endif
+{
     prv_process_tx_complete(CANModule_local, CAN_TX_MAILBOX2);
 }
 
 #endif /* !CO_STM32_FDCAN_Driver */
+
+#if CO_STM32_REGISTER_CALLBACKS
+
+/**
+ * \brief           Register the driver's handlers on the CANopen peripheral handle
+ * \param[in]       periphhandle: HAL handle of the CANopen peripheral, must be initialized and not yet started
+ * \return          `CO_ERROR_NO` on success, `CO_ERROR_ILLEGAL_ARGUMENT` if the HAL refused a registration
+ *                  (in which case the corresponding handlers are detached automatically)
+ */
+static CO_ReturnError_t
+prv_attach_hal_callbacks(can_periph_handle_t* periphhandle) {
+    bool_t ok;
+
+#ifdef CO_STM32_FDCAN_Driver
+    ok = HAL_FDCAN_RegisterRxFifo0Callback(periphhandle, prv_fdcan_rx_fifo0_handler) == HAL_OK
+         && HAL_FDCAN_RegisterRxFifo1Callback(periphhandle, prv_fdcan_rx_fifo1_handler) == HAL_OK
+         && HAL_FDCAN_RegisterTxBufferCompleteCallback(periphhandle, prv_fdcan_tx_buffer_complete_handler) == HAL_OK
+         && HAL_FDCAN_RegisterCallback(periphhandle, HAL_FDCAN_ERROR_CALLBACK_CB_ID, prv_fdcan_error_handler) == HAL_OK
+         && HAL_FDCAN_RegisterErrorStatusCallback(periphhandle, prv_fdcan_error_status_handler) == HAL_OK;
+#else  /* CO_STM32_FDCAN_Driver */
+    ok =
+        HAL_CAN_RegisterCallback(periphhandle, HAL_CAN_RX_FIFO0_MSG_PENDING_CB_ID, prv_can_rx_fifo0_msg_pending_handler)
+            == HAL_OK
+        && HAL_CAN_RegisterCallback(periphhandle, HAL_CAN_RX_FIFO1_MSG_PENDING_CB_ID,
+                                    prv_can_rx_fifo1_msg_pending_handler)
+               == HAL_OK
+        && HAL_CAN_RegisterCallback(periphhandle, HAL_CAN_TX_MAILBOX0_COMPLETE_CB_ID,
+                                    prv_can_tx_mailbox0_complete_handler)
+               == HAL_OK
+        && HAL_CAN_RegisterCallback(periphhandle, HAL_CAN_TX_MAILBOX1_COMPLETE_CB_ID,
+                                    prv_can_tx_mailbox1_complete_handler)
+               == HAL_OK
+        && HAL_CAN_RegisterCallback(periphhandle, HAL_CAN_TX_MAILBOX2_COMPLETE_CB_ID,
+                                    prv_can_tx_mailbox2_complete_handler)
+               == HAL_OK;
+#endif /* !CO_STM32_FDCAN_Driver */
+
+    if (!ok) {
+        prv_detach_hal_callbacks(periphhandle);
+        return CO_ERROR_ILLEGAL_ARGUMENT;
+    }
+    return CO_ERROR_NO;
+}
+
+/**
+ * \brief           Remove the driver's handlers from the CANopen peripheral handle
+ * \param[in]       periphhandle: HAL handle of the CANopen peripheral, must be initialized and not running
+ */
+static void
+prv_detach_hal_callbacks(can_periph_handle_t* periphhandle) {
+#ifdef CO_STM32_FDCAN_Driver
+    (void)HAL_FDCAN_UnRegisterRxFifo0Callback(periphhandle);
+    (void)HAL_FDCAN_UnRegisterRxFifo1Callback(periphhandle);
+    (void)HAL_FDCAN_UnRegisterTxBufferCompleteCallback(periphhandle);
+    (void)HAL_FDCAN_UnRegisterCallback(periphhandle, HAL_FDCAN_ERROR_CALLBACK_CB_ID);
+    (void)HAL_FDCAN_UnRegisterErrorStatusCallback(periphhandle);
+#else  /* CO_STM32_FDCAN_Driver */
+    (void)HAL_CAN_UnRegisterCallback(periphhandle, HAL_CAN_RX_FIFO0_MSG_PENDING_CB_ID);
+    (void)HAL_CAN_UnRegisterCallback(periphhandle, HAL_CAN_RX_FIFO1_MSG_PENDING_CB_ID);
+    (void)HAL_CAN_UnRegisterCallback(periphhandle, HAL_CAN_TX_MAILBOX0_COMPLETE_CB_ID);
+    (void)HAL_CAN_UnRegisterCallback(periphhandle, HAL_CAN_TX_MAILBOX1_COMPLETE_CB_ID);
+    (void)HAL_CAN_UnRegisterCallback(periphhandle, HAL_CAN_TX_MAILBOX2_COMPLETE_CB_ID);
+#endif /* !CO_STM32_FDCAN_Driver */
+}
+
+#endif /* CO_STM32_REGISTER_CALLBACKS */
