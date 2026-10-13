@@ -125,7 +125,7 @@ static void prv_fdcan_bus_off_check_reset(FDCAN_HandleTypeDef* hfdcan);
  */
 static uint8_t
 prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
-    uint8_t success = 0;
+    HAL_StatusTypeDef success = HAL_ERROR;
 
     /* Check if TX FIFO is ready to accept more messages */
 #ifdef CO_STM32_FDCAN_Driver
