@@ -136,14 +136,14 @@ prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
          * RTR flag is part of identifier value
          * hence it needs to be properly decoded
          */
-        tx_hdr.Identifier = buffer->ident & CANID_MASK;
-        tx_hdr.TxFrameType = (buffer->ident & FLAG_RTR) ? FDCAN_REMOTE_FRAME : FDCAN_DATA_FRAME;
-        tx_hdr.IdType = FDCAN_STANDARD_ID;
-        tx_hdr.FDFormat = FDCAN_CLASSIC_CAN;
-        tx_hdr.BitRateSwitch = FDCAN_BRS_OFF;
-        tx_hdr.MessageMarker = 0;
+        tx_hdr.Identifier          = buffer->ident & CANID_MASK;
+        tx_hdr.TxFrameType         = (buffer->ident & FLAG_RTR) ? FDCAN_REMOTE_FRAME : FDCAN_DATA_FRAME;
+        tx_hdr.IdType              = FDCAN_STANDARD_ID;
+        tx_hdr.FDFormat            = FDCAN_CLASSIC_CAN;
+        tx_hdr.BitRateSwitch       = FDCAN_BRS_OFF;
+        tx_hdr.MessageMarker       = 0;
         tx_hdr.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-        tx_hdr.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+        tx_hdr.TxEventFifoControl  = FDCAN_NO_TX_EVENTS;
 
         tx_hdr.DataLength = FDCAN_DLC_NUM_TO_PERIPH_VALUE(buffer->DLC);
 
@@ -161,10 +161,10 @@ prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
          * hence it needs to be properly decoded
          */
         tx_hdr.ExtId = 0u;
-        tx_hdr.IDE = CAN_ID_STD;
-        tx_hdr.DLC = buffer->DLC;
+        tx_hdr.IDE   = CAN_ID_STD;
+        tx_hdr.DLC   = buffer->DLC;
         tx_hdr.StdId = buffer->ident & CANID_MASK;
-        tx_hdr.RTR = (buffer->ident & FLAG_RTR) ? CAN_RTR_REMOTE : CAN_RTR_DATA;
+        tx_hdr.RTR   = (buffer->ident & FLAG_RTR) ? CAN_RTR_REMOTE : CAN_RTR_DATA;
 
         /* Now add message to FIFO. Should not fail */
         success = HAL_CAN_AddTxMessage(GET_CAN_PERIPH_HANDLE(CANmodule), &tx_hdr, buffer->data, &TxMailboxNum);
@@ -184,9 +184,9 @@ prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
  */
 static void
 prv_read_can_received_msg(CO_CANmodule_t* CANmodule, uint32_t fifo, uint32_t fifo_isrs) {
-    CO_CANrxMsg_t rcvMsg;
+    CO_CANrxMsg_t        rcvMsg;
     can_periph_handle_t* mcu_canhandle = GET_CAN_PERIPH_HANDLE(CANmodule);
-    uint32_t pending = 0;
+    uint32_t             pending       = 0;
 
 #ifdef CO_STM32_FDCAN_Driver
     pending = HAL_FDCAN_GetRxFifoFillLevel(mcu_canhandle, fifo);
@@ -195,9 +195,9 @@ prv_read_can_received_msg(CO_CANmodule_t* CANmodule, uint32_t fifo, uint32_t fif
 #endif
 
     while (pending > 0) {
-        uint8_t messageFound = 0;
-        CO_CANrx_t* buffer = NULL; /* receive message buffer from CO_CANmodule_t object. */
-        uint32_t rcvMsgIdent;      /* identifier of the received message */
+        uint8_t     messageFound = 0;
+        CO_CANrx_t* buffer       = NULL; /* receive message buffer from CO_CANmodule_t object. */
+        uint32_t    rcvMsgIdent;         /* identifier of the received message */
 
         --pending;
 #ifdef CO_STM32_FDCAN_Driver
@@ -209,7 +209,7 @@ prv_read_can_received_msg(CO_CANmodule_t* CANmodule, uint32_t fifo, uint32_t fif
          * Check the FDCAN implementation for STM32 in their respective reference manual.
          */
         static FDCAN_RxHeaderTypeDef rx_hdr;
-        static uint8_t rx_data[64];
+        static uint8_t               rx_data[64];
 
         /* Read received message from FIFO */
         if (HAL_FDCAN_GetRxMessage(mcu_canhandle, fifo, &rx_hdr, rx_data) != HAL_OK) {
@@ -218,7 +218,7 @@ prv_read_can_received_msg(CO_CANmodule_t* CANmodule, uint32_t fifo, uint32_t fif
 
         /* Setup identifier (with RTR) and length */
         rcvMsg.ident = rx_hdr.Identifier | (rx_hdr.RxFrameType == FDCAN_REMOTE_FRAME ? FLAG_RTR : 0x00);
-        rcvMsg.dlc = FDCAN_DLC_PERIPH_TO_NUM(rx_hdr.DataLength); /* Invalid length (more than 8) resolves to 0 */
+        rcvMsg.dlc   = FDCAN_DLC_PERIPH_TO_NUM(rx_hdr.DataLength); /* Invalid length (more than 8) resolves to 0 */
         if (rcvMsg.dlc > 0) {
             memcpy(rcvMsg.data, rx_data, rcvMsg.dlc);
         }
@@ -232,8 +232,8 @@ prv_read_can_received_msg(CO_CANmodule_t* CANmodule, uint32_t fifo, uint32_t fif
         }
         /* Setup identifier (with RTR) and length */
         rcvMsg.ident = rx_hdr.StdId | (rx_hdr.RTR == CAN_RTR_REMOTE ? FLAG_RTR : 0x00);
-        rcvMsg.dlc = rx_hdr.DLC;
-        rcvMsgIdent = rcvMsg.ident;
+        rcvMsg.dlc   = rx_hdr.DLC;
+        rcvMsgIdent  = rcvMsg.ident;
 #endif
 
         /*
@@ -338,7 +338,7 @@ CO_CANsetNormalMode(CO_CANmodule_t* CANmodule) {
     /* Put CAN module in normal mode */
     if (CANmodule != NULL && CANmodule->CANptr != NULL) {
         can_periph_handle_t* periphhandle = GET_CAN_PERIPH_HANDLE(CANmodule);
-        HAL_StatusTypeDef status;
+        HAL_StatusTypeDef    status;
 
 #ifdef CO_STM32_FDCAN_Driver
         status = HAL_FDCAN_Start(periphhandle);
@@ -384,25 +384,25 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
     CANModule_local = CANmodule;
 
     /* Configure object variables */
-    CANmodule->rxArray = rxArray;
-    CANmodule->rxSize = rxSize;
-    CANmodule->txArray = txArray;
-    CANmodule->txSize = txSize;
-    CANmodule->CANerrorStatus = 0;
-    CANmodule->CANnormal = false;
-    CANmodule->useCANrxFilters = false; /* Do not use HW filters */
+    CANmodule->rxArray           = rxArray;
+    CANmodule->rxSize            = rxSize;
+    CANmodule->txArray           = txArray;
+    CANmodule->txSize            = txSize;
+    CANmodule->CANerrorStatus    = 0;
+    CANmodule->CANnormal         = false;
+    CANmodule->useCANrxFilters   = false; /* Do not use HW filters */
     CANmodule->bufferInhibitFlag = false;
     CANmodule->firstCANtxMessage = true;
-    CANmodule->CANtxCount = 0U;
-    CANmodule->errOld = 0U;
+    CANmodule->CANtxCount        = 0U;
+    CANmodule->errOld            = 0U;
 
     /* Reset all variables */
     for (uint16_t idx = 0U; idx < rxSize; idx++) {
         CO_CANrx_t* const msg = &rxArray[idx];
 
-        msg->ident = 0U;
-        msg->mask = 0xFFFFU;
-        msg->object = NULL;
+        msg->ident          = 0U;
+        msg->mask           = 0xFFFFU;
+        msg->object         = NULL;
         msg->CANrx_callback = NULL;
     }
     for (uint16_t idx = 0U; idx < txSize; idx++) {
@@ -444,15 +444,15 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
         FilterConfig.FilterBank = 14;
     }
 #endif
-    FilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
-    FilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
-    FilterConfig.FilterIdHigh = 0x0;
-    FilterConfig.FilterIdLow = 0x0;
-    FilterConfig.FilterMaskIdHigh = 0x0;
-    FilterConfig.FilterMaskIdLow = 0x0;
+    FilterConfig.FilterMode           = CAN_FILTERMODE_IDMASK;
+    FilterConfig.FilterScale          = CAN_FILTERSCALE_32BIT;
+    FilterConfig.FilterIdHigh         = 0x0;
+    FilterConfig.FilterIdLow          = 0x0;
+    FilterConfig.FilterMaskIdHigh     = 0x0;
+    FilterConfig.FilterMaskIdLow      = 0x0;
     FilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
 
-    FilterConfig.FilterActivation = ENABLE;
+    FilterConfig.FilterActivation     = ENABLE;
     FilterConfig.SlaveStartFilterBank = 14;
 
     if (HAL_CAN_ConfigFilter(canstm32handle->CANHandle, &FilterConfig) != HAL_OK) {
@@ -490,7 +490,7 @@ CO_CANmodule_disable(CO_CANmodule_t* CANmodule) {
     /* Disable the module */
     if (CANmodule != NULL && CANmodule->CANptr != NULL) {
         can_periph_handle_t* periphhandle = GET_CAN_PERIPH_HANDLE(CANmodule);
-        HAL_StatusTypeDef status;
+        HAL_StatusTypeDef    status;
 
 #ifdef CO_STM32_FDCAN_Driver
         status = HAL_FDCAN_Stop(periphhandle);
@@ -513,7 +513,7 @@ CO_CANrxBufferInit(CO_CANmodule_t* CANmodule, uint16_t index, uint16_t ident, ui
         CO_CANrx_t* buffer = &CANmodule->rxArray[index];
 
         /* Configure object variables */
-        buffer->object = object;
+        buffer->object         = object;
         buffer->CANrx_callback = CANrx_callback;
 
         /*
@@ -522,7 +522,7 @@ CO_CANrxBufferInit(CO_CANmodule_t* CANmodule, uint16_t index, uint16_t ident, ui
          * This is later used for RX operation match case
          */
         buffer->ident = (ident & CANID_MASK) | (rtr ? FLAG_RTR : 0x00);
-        buffer->mask = (mask & CANID_MASK) | FLAG_RTR;
+        buffer->mask  = (mask & CANID_MASK) | FLAG_RTR;
 
         /* Set CAN hardware module filter and mask. */
         if (CANmodule->useCANrxFilters) {
@@ -545,10 +545,10 @@ CO_CANtxBufferInit(CO_CANmodule_t* CANmodule, uint16_t index, uint16_t ident, bo
         buffer = &CANmodule->txArray[index];
 
         /* CAN identifier, DLC and rtr, bit aligned with CAN module transmit buffer */
-        buffer->ident = ((uint32_t)ident & CANID_MASK) | ((uint32_t)(rtr ? FLAG_RTR : 0x00));
-        buffer->DLC = noOfBytes;
+        buffer->ident      = ((uint32_t)ident & CANID_MASK) | ((uint32_t)(rtr ? FLAG_RTR : 0x00));
+        buffer->DLC        = noOfBytes;
         buffer->bufferFull = false;
-        buffer->syncFlag = syncFlag;
+        buffer->syncFlag   = syncFlag;
     }
     return buffer;
 }
@@ -598,7 +598,7 @@ CO_CANclearPendingSyncPDOs(CO_CANmodule_t* CANmodule) {
     if (/*messageIsOnCanBuffer && */ CANmodule->bufferInhibitFlag) {
         /* clear TXREQ */
         CANmodule->bufferInhibitFlag = false;
-        tpdoDeleted = 1U;
+        tpdoDeleted                  = 1U;
     }
     /* delete also pending synchronous TPDOs in TX buffers */
     if (CANmodule->CANtxCount > 0) {
@@ -624,7 +624,7 @@ CO_CANclearPendingSyncPDOs(CO_CANmodule_t* CANmodule) {
 
 void
 CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
-    uint32_t err = 0;
+    uint32_t             err          = 0;
     can_periph_handle_t* periphhandle = GET_CAN_PERIPH_HANDLE(CANmodule);
 
     // CANOpen just care about Bus_off, Warning, Passive and Overflow

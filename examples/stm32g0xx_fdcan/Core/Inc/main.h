@@ -32,6 +32,9 @@ extern "C" {
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+/* make i2c port public */
+#include "i2c.h"
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -46,6 +49,15 @@ extern "C" {
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
+
+/* enable storage functionality in CANopenNode_STM32 */
+#ifndef CO_CONFIG_STORAGE
+#define CO_CONFIG_STORAGE (CO_CONFIG_STORAGE_ENABLE)
+#endif
+
+/* assign the i2c port to which the EEPROM is connected */
+#define HI2C_EEPROM    &hi2c1
+#define I2C_TIMEOUT_MS 250 // I2C bus timeout [ms]
 
 /* USER CODE END EM */
 
@@ -129,6 +141,8 @@ void Error_Handler(void);
 #define LED1_GPIO_Port GPIOD
 #define LED2_Pin GPIO_PIN_6
 #define LED2_GPIO_Port GPIOD
+#define CAN_CFG_Pin GPIO_PIN_4
+#define CAN_CFG_GPIO_Port GPIOB
 #define MC_EnB_Pin GPIO_PIN_5
 #define MC_EnB_GPIO_Port GPIOB
 #define FDCAN1_STBY_Pin GPIO_PIN_0

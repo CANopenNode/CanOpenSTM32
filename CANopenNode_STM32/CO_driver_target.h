@@ -45,8 +45,6 @@
 #error This STM32 does not support CAN or FDCAN
 #endif
 
-#undef CO_CONFIG_STORAGE_ENABLE // We don't need the Storage option; implement it based on your use case and remove this line
-
 #ifdef CO_DRIVER_CUSTOM
 #include "CO_driver_custom.h"
 #endif
@@ -58,6 +56,16 @@ extern "C" {
 /* Stack configuration override default values.
  * For more information see file CO_config.h. */
 
+/* Configure storage */
+#ifndef CO_CONFIG_STORAGE
+#define CO_CONFIG_STORAGE (0)
+#endif
+
+/* Enable CRC-16 calculation. Required by CO_storageEeprom / CO_eeprom_STM32. */
+#if (((CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE) != 0)
+#define CO_CONFIG_CRC16 (CO_CONFIG_CRC16_ENABLE)
+#endif
+
 /* Basic definitions. If big endian, CO_SWAP_xx macros must swap bytes. */
 #define CO_LITTLE_ENDIAN
 #define CO_SWAP_16(x) x
@@ -68,8 +76,8 @@ extern "C" {
 /* true and false are defined in stdbool.h */
 /* int8_t to uint64_t are defined in stdint.h */
 typedef uint_fast8_t bool_t;
-typedef float float32_t;
-typedef double float64_t;
+typedef float        float32_t;
+typedef double       float64_t;
 
 /**
  * \brief           CAN RX message for platform
@@ -77,9 +85,9 @@ typedef double float64_t;
  * This is platform specific
  */
 typedef struct {
-    uint32_t ident;  /*!< Standard identifier */
-    uint8_t dlc;     /*!< Data length */
-    uint8_t data[8]; /*!< Received data */
+    uint32_t ident;   /*!< Standard identifier */
+    uint8_t  dlc;     /*!< Data length */
+    uint8_t  data[8]; /*!< Received data */
 } CO_CANrxMsg_t;
 
 /* Access to received CAN message */
@@ -91,44 +99,49 @@ typedef struct {
 typedef struct {
     uint16_t ident;
     uint16_t mask;
-    void* object;
+    void*    object;
     void (*CANrx_callback)(void* object, void* message);
 } CO_CANrx_t;
 
 /* Transmit message object */
 typedef struct {
-    uint32_t ident;
-    uint8_t DLC;
-    uint8_t data[8];
+    uint32_t        ident;
+    uint8_t         DLC;
+    uint8_t         data[8];
     volatile bool_t bufferFull;
     volatile bool_t syncFlag;
 } CO_CANtx_t;
 
 /* CAN module object */
 typedef struct {
-    void* CANptr;
-    CO_CANrx_t* rxArray;
-    uint16_t rxSize;
-    CO_CANtx_t* txArray;
-    uint16_t txSize;
-    uint16_t CANerrorStatus;
-    volatile bool_t CANnormal;
-    volatile bool_t useCANrxFilters;
-    volatile bool_t bufferInhibitFlag;
-    volatile bool_t firstCANtxMessage;
+    void*             CANptr;
+    CO_CANrx_t*       rxArray;
+    uint16_t          rxSize;
+    CO_CANtx_t*       txArray;
+    uint16_t          txSize;
+    uint16_t          CANerrorStatus;
+    volatile bool_t   CANnormal;
+    volatile bool_t   useCANrxFilters;
+    volatile bool_t   bufferInhibitFlag;
+    volatile bool_t   firstCANtxMessage;
     volatile uint16_t CANtxCount;
-    uint32_t errOld;
+    uint32_t          errOld;
 
 } CO_CANmodule_t;
 
 /* Data storage object for one entry */
 typedef struct {
-    void* addr;
-    size_t len;
+    void*   addr;
+    size_t  len;
     uint8_t subIndexOD;
     uint8_t attr;
     /* Additional variables (target specific) */
-    void* addrNV;
+    void*    addrNV;
+    void*    storageModule;
+    uint16_t crc;
+    size_t   eepromAddrSignature;
+    size_t   eepromAddr;
+    size_t   offset;
 } CO_storage_entry_t;
 
 /* Synchronization between CAN receive and message processing threads. */
@@ -197,7 +210,8 @@ typedef struct {
 
 /**
  * \brief           Number of priority bits the CPU implements, used for correct value alignment.
- *                  If not provided, we try to use the value defined in the CPU header with the ARM Cortex-M defined macro.
+ *                  If not provided, we try to use the value defined in the CPU header with the ARM Cortex-M defined
+ * macro.
  */
 #ifndef CO_LOCK_BASEPRI_NVIC_PRIO_BITS
 #define CO_LOCK_BASEPRI_NVIC_PRIO_BITS __NVIC_PRIO_BITS
