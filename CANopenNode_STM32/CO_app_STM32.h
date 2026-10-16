@@ -66,6 +66,8 @@ extern CANopenNodeSTM32* canopenNodeSTM32;
 /* This function will initialize the required CANOpen Stack objects, allocate the memory and prepare stack for
  * communication reset*/
 int canopen_app_init(CANopenNodeSTM32* canopenSTM32);
+/* This function will provide the microseconds clock, can be overridden by user */
+uint32_t canopen_app_get_time();
 /* This function will reset the CAN communication periperhal and also the CANOpen stack variables */
 int canopen_app_resetCommunication();
 /* This function will check the input buffers and any outstanding tasks that are not time critical, this function should
