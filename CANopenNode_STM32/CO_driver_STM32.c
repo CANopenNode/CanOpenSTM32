@@ -435,7 +435,7 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
     }
 #else /* CO_STM32_FDCAN_Driver */
     CAN_FilterTypeDef FilterConfig;
-#if defined(CAN)
+#if !defined(CAN2)
     FilterConfig.FilterBank = 0;
 #else
     if ((GET_CAN_PERIPH_HANDLE(CANmodule))->Instance == CAN1) {
