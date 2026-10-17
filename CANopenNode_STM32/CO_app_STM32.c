@@ -33,8 +33,8 @@
 #include "CO_storageBlank.h"
 #include "OD.h"
 
-CANopenNodeSTM32*
-    canopenNodeSTM32; // It will be set by canopen_app_init and will be used across app to get access to CANOpen objects
+// It will be set by canopen_app_init and will be used across app to get access to CANOpen objects
+CANopenNodeSTM32* canopenNodeSTM32;
 
 /* Printf function of CanOpen app */
 #ifndef log_printf
