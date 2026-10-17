@@ -126,12 +126,13 @@ static void prv_fdcan_bus_off_check_reset(FDCAN_HandleTypeDef* hfdcan);
 static uint8_t
 prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
     HAL_StatusTypeDef success = HAL_ERROR;
+    can_periph_handle_t* periphhandle = GET_CAN_PERIPH_HANDLE(CANmodule);
 
     /* Check if TX FIFO is ready to accept more messages */
 #ifdef CO_STM32_FDCAN_Driver
     static FDCAN_TxHeaderTypeDef tx_hdr;
 
-    if (HAL_FDCAN_GetTxFifoFreeLevel(GET_CAN_PERIPH_HANDLE(CANmodule)) > 0) {
+    if (HAL_FDCAN_GetTxFifoFreeLevel(periphhandle) > 0) {
         /*
          * RTR flag is part of identifier value
          * hence it needs to be properly decoded
@@ -148,12 +149,12 @@ prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
         tx_hdr.DataLength = FDCAN_DLC_NUM_TO_PERIPH_VALUE(buffer->DLC);
 
         /* Now add message to FIFO. Should not fail */
-        success = HAL_FDCAN_AddMessageToTxFifoQ(GET_CAN_PERIPH_HANDLE(CANmodule), &tx_hdr, buffer->data);
+        success = HAL_FDCAN_AddMessageToTxFifoQ(periphhandle, &tx_hdr, buffer->data);
     }
 #else
     static CAN_TxHeaderTypeDef tx_hdr;
     /* Check if TX FIFO is ready to accept more messages */
-    if (HAL_CAN_GetTxMailboxesFreeLevel(GET_CAN_PERIPH_HANDLE(CANmodule)) > 0) {
+    if (HAL_CAN_GetTxMailboxesFreeLevel(periphhandle) > 0) {
         uint32_t TxMailboxNum = 0;
 
         /*
@@ -167,7 +168,7 @@ prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
         tx_hdr.RTR = (buffer->ident & FLAG_RTR) ? CAN_RTR_REMOTE : CAN_RTR_DATA;
 
         /* Now add message to FIFO. Should not fail */
-        success = HAL_CAN_AddTxMessage(GET_CAN_PERIPH_HANDLE(CANmodule), &tx_hdr, buffer->data, &TxMailboxNum);
+        success = HAL_CAN_AddTxMessage(periphhandle, &tx_hdr, buffer->data, &TxMailboxNum);
     }
 #endif
     if (success == HAL_OK) {
@@ -185,13 +186,13 @@ prv_send_can_message(CO_CANmodule_t* CANmodule, CO_CANtx_t* buffer) {
 static void
 prv_read_can_received_msg(CO_CANmodule_t* CANmodule, uint32_t fifo, uint32_t fifo_isrs) {
     CO_CANrxMsg_t rcvMsg;
-    can_periph_handle_t* mcu_canhandle = GET_CAN_PERIPH_HANDLE(CANmodule);
+    can_periph_handle_t* periphhandle = GET_CAN_PERIPH_HANDLE(CANmodule);
     uint32_t pending = 0;
 
 #ifdef CO_STM32_FDCAN_Driver
-    pending = HAL_FDCAN_GetRxFifoFillLevel(mcu_canhandle, fifo);
+    pending = HAL_FDCAN_GetRxFifoFillLevel(periphhandle, fifo);
 #else
-    pending = HAL_CAN_GetRxFifoFillLevel(mcu_canhandle, fifo);
+    pending = HAL_CAN_GetRxFifoFillLevel(periphhandle, fifo);
 #endif
 
     while (pending > 0) {
@@ -212,7 +213,7 @@ prv_read_can_received_msg(CO_CANmodule_t* CANmodule, uint32_t fifo, uint32_t fif
         static uint8_t rx_data[64];
 
         /* Read received message from FIFO */
-        if (HAL_FDCAN_GetRxMessage(mcu_canhandle, fifo, &rx_hdr, rx_data) != HAL_OK) {
+        if (HAL_FDCAN_GetRxMessage(periphhandle, fifo, &rx_hdr, rx_data) != HAL_OK) {
             return;
         }
 
@@ -227,7 +228,7 @@ prv_read_can_received_msg(CO_CANmodule_t* CANmodule, uint32_t fifo, uint32_t fif
         static CAN_RxHeaderTypeDef rx_hdr;
 
         /* Read received message from FIFO */
-        if (HAL_CAN_GetRxMessage(mcu_canhandle, fifo, &rx_hdr, rcvMsg.data) != HAL_OK) {
+        if (HAL_CAN_GetRxMessage(periphhandle, fifo, &rx_hdr, rcvMsg.data) != HAL_OK) {
             return;
         }
         /* Setup identifier (with RTR) and length */
@@ -312,11 +313,11 @@ prv_process_tx_complete(CO_CANmodule_t* CANmodule, uint32_t MailboxNumber) {
  */
 void
 CO_CANsetConfigurationMode(void* CANptr) {
-    CANopenNodeSTM32* customhandle = CANptr;
+    CANopenNodeSTM32* handle = CANptr;
 
     /* Put CAN module in configuration mode */
-    if (customhandle != NULL) {
-        can_periph_handle_t* periphhandle = customhandle->CANHandle;
+    if (handle != NULL) {
+        can_periph_handle_t* periphhandle = handle->CANHandle;
 #ifdef CO_STM32_FDCAN_Driver
         HAL_FDCAN_Stop(periphhandle);
 #else
@@ -371,6 +372,7 @@ CO_ReturnError_t
 CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[], uint16_t rxSize, CO_CANtx_t txArray[],
                   uint16_t txSize, uint16_t CANbitRate) {
     CANopenNodeSTM32* canstm32handle = CANptr;
+    can_periph_handle_t* periphhandle;
 
     /* verify arguments */
     if (CANmodule == NULL || rxArray == NULL || txArray == NULL || canstm32handle == NULL) {
@@ -379,6 +381,7 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
 
     /* CANptr is our STM32 type */
     CANmodule->CANptr = CANptr;
+    periphhandle = GET_CAN_PERIPH_HANDLE(CANmodule);
 
     /* Keep a local copy of CANModule */
     CANModule_local = CANmodule;
@@ -428,8 +431,8 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
      * Reject non-matching extended ID messages
      */
 #ifdef CO_STM32_FDCAN_Driver
-    if (HAL_FDCAN_ConfigGlobalFilter(canstm32handle->CANHandle, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_REJECT,
-                                     FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE)
+    if (HAL_FDCAN_ConfigGlobalFilter(periphhandle, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_REJECT, FDCAN_FILTER_REMOTE,
+                                     FDCAN_FILTER_REMOTE)
         != HAL_OK) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
@@ -438,11 +441,7 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
 #if defined(CAN)
     FilterConfig.FilterBank = 0;
 #else
-    if ((GET_CAN_PERIPH_HANDLE(CANmodule))->Instance == CAN1) {
-        FilterConfig.FilterBank = 0;
-    } else {
-        FilterConfig.FilterBank = 14;
-    }
+    FilterConfig.FilterBank = periphhandle->Instance == CAN1 ? 0 : 14;
 #endif
     FilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
     FilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
@@ -455,7 +454,7 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
     FilterConfig.FilterActivation = ENABLE;
     FilterConfig.SlaveStartFilterBank = 14;
 
-    if (HAL_CAN_ConfigFilter(canstm32handle->CANHandle, &FilterConfig) != HAL_OK) {
+    if (HAL_CAN_ConfigFilter(periphhandle, &FilterConfig) != HAL_OK) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
 #endif /* !CO_STM32_FDCAN_Driver */
@@ -463,7 +462,7 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
     /* Enable notifications */
     /* Activate the CAN notification interrupts */
 #ifdef CO_STM32_FDCAN_Driver
-    if (HAL_FDCAN_ActivateNotification(canstm32handle->CANHandle,
+    if (HAL_FDCAN_ActivateNotification(periphhandle,
                                        0 | FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_RX_FIFO1_NEW_MESSAGE
                                            | FDCAN_IT_TX_COMPLETE | FDCAN_IT_TX_FIFO_EMPTY | FDCAN_IT_BUS_OFF
                                            | FDCAN_IT_ARB_PROTOCOL_ERROR | FDCAN_IT_DATA_PROTOCOL_ERROR
@@ -473,9 +472,8 @@ CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[],
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
 #else
-    if (HAL_CAN_ActivateNotification(canstm32handle->CANHandle, CAN_IT_RX_FIFO0_MSG_PENDING
-                                                                    | CAN_IT_RX_FIFO1_MSG_PENDING
-                                                                    | CAN_IT_TX_MAILBOX_EMPTY)
+    if (HAL_CAN_ActivateNotification(periphhandle, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_RX_FIFO1_MSG_PENDING
+                                                       | CAN_IT_TX_MAILBOX_EMPTY)
         != HAL_OK) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
