@@ -45,6 +45,9 @@ application code in `CANopenNode_STM32`, verify it builds and behaves correctly 
 - Classic CAN examples: `examples/stm32f0xx_can`, `examples/stm32f3xx_can`, `examples/stm32f4xx_can`
 - FDCAN examples: `examples/stm32g0xx_fdcan`, `examples/stm32g0xx_fdcan_rtos`, `examples/stm32h7xx_fdcan`
 
+Additionally, there are two `examples/xxx_register_callbacks` examples built with `USE_HAL_(FD)CAN_REGISTER_CALLBACKS`
+enabled, which exercise the driver's per-handle callback path.
+
 Building all of them (step 3 below) is a good first check. If your change is intentionally
 specific to only one controller type (e.g. an FDCAN-only errata workaround), say so explicitly
 in the PR description, including why the other controller type doesn't need the change.
