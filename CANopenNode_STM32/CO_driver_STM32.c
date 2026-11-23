@@ -651,6 +651,9 @@ CO_CANclearPendingSyncPDOs(CO_CANmodule_t* CANmodule) {
     CO_UNLOCK_CAN_SEND(CANmodule);
     if (tpdoDeleted) {
         CANmodule->CANerrorStatus |= CO_CAN_ERRTX_PDO_LATE;
+    } else {
+        // No synchronous TPDO was late in this SYNC window, so clear the (non-latching) PDO late flag
+        CANmodule->CANerrorStatus &= 0xFFFFU ^ CO_CAN_ERRTX_PDO_LATE;
     }
 }
 
